@@ -1,0 +1,15 @@
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /source
+COPY backend/pom.xml ./pom.xml
+RUN mvn -q dependency:go-offline
+COPY backend/src ./src
+RUN mvn -q -DskipTests package
+FROM eclipse-temurin:21-jre
+RUN groupadd --system custerra && useradd --system --gid custerra custerra
+WORKDIR /app
+COPY --from=build /source/target/backend-0.0.1-SNAPSHOT.jar /app/backend.jar
+COPY infrastructure/start-backend.sh /app/start-backend.sh
+USER custerra
+ENV SERVER_ADDRESS=0.0.0.0 SERVER_PORT=8080
+EXPOSE 8080
+ENTRYPOINT ["sh","/app/start-backend.sh"]

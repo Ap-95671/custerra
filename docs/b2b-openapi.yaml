@@ -1,0 +1,154 @@
+openapi: 3.1.0
+info:
+  title: Custerra Evidence API
+  version: 1.0.0
+  description: USGS earthquake evidence and experimental proximity/activity indicators. No disaster prediction or safe-travel guarantee. See b2b-api.md for attribution, credentials and quota semantics.
+servers:
+  - url: /api/v1/b2b
+security:
+  - ApiKey: []
+paths:
+  /hazards/nearby:
+    get:
+      operationId: nearbyEarthquakeEvidence
+      summary: Retrieve nearby USGS observations
+      parameters:
+        - {$ref: '#/components/parameters/Latitude'}
+        - {$ref: '#/components/parameters/Longitude'}
+        - {$ref: '#/components/parameters/Radius'}
+        - {$ref: '#/components/parameters/Days'}
+      responses:
+        '200': {$ref: '#/components/responses/Evidence'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Quota'}
+        '502': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+        '504': {$ref: '#/components/responses/Error'}
+  /risk/location:
+    get:
+      operationId: earthquakeActivityAtLocation
+      summary: Experimental recent-earthquake activity; overall risk stays UNKNOWN
+      parameters:
+        - {$ref: '#/components/parameters/Latitude'}
+        - {$ref: '#/components/parameters/Longitude'}
+        - {$ref: '#/components/parameters/Radius'}
+        - {$ref: '#/components/parameters/Days'}
+      responses:
+        '200': {$ref: '#/components/responses/Evidence'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Quota'}
+        '502': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+        '504': {$ref: '#/components/responses/Error'}
+  /risk/route:
+    post:
+      operationId: suppliedRouteEarthquakeExposure
+      summary: Assess supplied great-circle segments, not navigation or road closures
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/Route'}
+      responses:
+        '200': {$ref: '#/components/responses/Evidence'}
+        '400': {$ref: '#/components/responses/Error'}
+        '401': {$ref: '#/components/responses/Error'}
+        '429': {$ref: '#/components/responses/Quota'}
+        '502': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+        '504': {$ref: '#/components/responses/Error'}
+components:
+  securitySchemes:
+    ApiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: Custerra API key
+      description: A high-entropy cst_ credential; consumer session cookies are not accepted.
+  parameters:
+    Latitude:
+      name: latitude
+      in: query
+      required: true
+      schema: {type: number, minimum: -90, maximum: 90}
+    Longitude:
+      name: longitude
+      in: query
+      required: true
+      schema: {type: number, minimum: -180, maximum: 180}
+    Radius:
+      name: radiusKm
+      in: query
+      schema: {type: number, minimum: 1, maximum: 1000, default: 100}
+    Days:
+      name: days
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 30, default: 7}
+  responses:
+    Evidence:
+      description: Scoped result. Preserve source attribution, timestamps, coverage, confidence and limitations in downstream use.
+      headers:
+        X-Request-ID:
+          schema: {type: string, format: uuid}
+          description: Admitted request's recorded identifier
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Envelope'}
+    Error:
+      description: Invalid input, missing credentials or unavailable provider/service. No hazard-safety conclusion can be inferred.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    Quota:
+      description: Shared organization minute/day quota exhausted. This rejection is not charged.
+      headers:
+        Retry-After:
+          schema: {type: string}
+          description: Seconds until the exhausted UTC quota window resets
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+  schemas:
+    Point:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude: {type: number, minimum: -90, maximum: 90}
+        longitude: {type: number, minimum: -180, maximum: 180}
+    Route:
+      type: object
+      required: [points, corridorKm, days, minMagnitude]
+      properties:
+        points:
+          type: array
+          minItems: 2
+          maxItems: 20
+          items: {$ref: '#/components/schemas/Point'}
+        corridorKm: {type: number, minimum: 1, maximum: 100}
+        days: {type: integer, minimum: 1, maximum: 30}
+        minMagnitude: {type: number, minimum: 0, maximum: 10}
+    Envelope:
+      type: object
+      required: [apiVersion, calculationVersion, scope, coverageStatus, confidence, limitations, data]
+      properties:
+        apiVersion: {type: string, const: v1}
+        calculationVersion: {type: string}
+        scope: {type: string, const: USGS_EARTHQUAKE_OBSERVATIONS_ONLY}
+        coverageStatus: {type: string, enum: [COMPLETE, PARTIAL, TRUNCATED, UNAVAILABLE, UNKNOWN]}
+        confidence: {type: string, const: UNKNOWN}
+        limitations: {type: array, items: {type: string}}
+        data:
+          type: object
+          additionalProperties: true
+          description: Existing NearbyHazardResponse, RiskResponse or RouteRiskResponse documented in api-design.md and history-and-journeys.md. Model versions and provenance are retained.
+    Error:
+      type: object
+      required: [timestamp, status, error, message, path]
+      properties:
+        timestamp: {type: string, format: date-time}
+        status: {type: integer}
+        error: {type: string}
+        message: {type: string}
+        path: {type: string}
+        validationErrors: {type: array, items: {type: object}}

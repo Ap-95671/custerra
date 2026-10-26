@@ -1,0 +1,45 @@
+import { authFixture } from './authFixture';
+import { test, expect } from '@playwright/test';
+test.beforeEach(async ({ page }) => { await page.route('**/api/v1/auth/**', route => authFixture(route) || route.fallback()); });
+const id = '11111111-1111-4111-8111-111111111111';
+const time = '2026-01-01T00:00:00Z';
+const journey = { id, name: 'Offline test journey', status: 'ACTIVE', createdAt: time, lastAttemptAt: time, lastCheckedAt: time, lastError: 'PROVIDER_TIMEOUT', route: { points: [{ latitude: 0, longitude: 0 }, { latitude: 0, longitude: 1 }], corridorKm: 25, days: 7, minMagnitude: 4 }, assessment: { modelVersion: 'route-proximity-v1', query: { points: [{ latitude: 0, longitude: 0 }, { latitude: 0, longitude: 1 }], corridorKm: 25, days: 7, minMagnitude: 4 }, assessedAt: time, lengthKm: 111, overallRisk: 'UNKNOWN', truncated: true, matches: [], explanation: 'Test-only incomplete evidence.' } };
+test('explicit offline save survives disconnected navigation and reload without mutations or API caching', async ({ page, context }) => {
+  const mutations: string[] = [];
+  await page.route('**/api/v1/**', r => {
+    const auth = authFixture(r); if (auth) return auth;
+    if (r.request().method() !== 'GET') mutations.push(r.request().method());
+    const path = new URL(r.request().url()).pathname;
+    return r.fulfill({ json: path.endsWith('/monitoring') ? { schedulerEnabled: false, intervalMs: 300000 } : path.endsWith('/notices') ? [] : path.endsWith(id) ? journey : [journey] });
+  });
+  await page.goto('/routes'); await page.getByRole('button', { name: 'Offline test journey · ACTIVE' }).click();
+  await page.getByRole('button', { name: 'Save offline copy' }).click();
+  await expect(page.getByText('Offline copy saved.', { exact: false })).toBeVisible();
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await context.setOffline(true);
+  const offline = await context.newPage(); await offline.goto('/routes');
+  await expect(offline.getByRole('heading', { name: 'Offline journey copies' })).toBeVisible();
+  await expect(offline.getByRole('heading', { name: 'Offline test journey' })).toBeVisible();
+  await expect(offline.getByText('Last saved check error: PROVIDER_TIMEOUT', { exact: false })).toBeVisible();
+  await expect(offline.getByText('Incomplete catalog coverage:', { exact: false })).toBeVisible();
+  await expect(offline.getByRole('button', { name: 'Check now' })).toHaveCount(0);
+  await offline.reload(); await expect(offline.getByRole('heading', { name: 'Offline test journey' })).toBeVisible();
+  await offline.setViewportSize({ width: 390, height: 844 });
+  expect(await offline.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await offline.screenshot({ path: '/private/tmp/custerra-m11/offline-mobile.png', fullPage: true });
+  const cached = await offline.evaluate(async () => { const cache = await caches.open('custerra-offline-shell-v3'); return (await cache.keys()).map(r => new URL(r.url).pathname).sort(); });
+  expect(cached).toEqual(['/offline-store.js', '/offline-viewer.js', '/offline.css', '/offline.html']);
+  await offline.getByRole('button', { name: 'Remove this offline copy' }).click();
+  await expect(offline.getByText('No valid offline copies.', { exact: false })).toBeVisible();
+  await context.setOffline(false); await offline.goto('/routes');
+  await expect(offline.getByRole('heading', { name: 'Evidence along your route.' })).toBeVisible();
+  expect(mutations).toEqual([]);
+});
+test('offline viewer treats stored titles as text and expires old copies', async ({ page }) => {
+  await page.goto('/offline.html');
+  await page.evaluate(({ journey }) => localStorage.setItem('custerra.journey-copies.v1', JSON.stringify([{ version: 1, savedAt: new Date().toISOString(), server: 'http://localhost:8080', journey: { ...journey, name: '<img src=x onerror=alert(1)>' }, notices: [] }])), { journey });
+  await page.reload(); await expect(page.getByRole('heading', { name: '<img src=x onerror=alert(1)>' })).toBeVisible();
+  await expect(page.locator('img')).toHaveCount(0);
+  await page.evaluate(() => { const values = JSON.parse(localStorage.getItem('custerra.journey-copies.v1')!); values[0].savedAt = '2000-01-01T00:00:00Z'; localStorage.setItem('custerra.journey-copies.v1', JSON.stringify(values)); });
+  await page.reload(); await expect(page.getByText('No valid offline copies.', { exact: false })).toBeVisible();
+});

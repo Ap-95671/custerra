@@ -1,0 +1,55 @@
+{
+  "modelName": "algerian-weather-label-logistic",
+  "modelVersion": "research-v1",
+  "informationType": "EXPERIMENTAL_PREDICTION",
+  "datasetSha256": "3be9ea1575c093cf6bfa7b56110cedc827aa8ca7953bf571530f8cd9990e0a0c",
+  "features": [
+    "temperatureC",
+    "relativeHumidityPct",
+    "windKmh",
+    "rainMm"
+  ],
+  "mean": [
+    30.83606557377049,
+    69.98360655737704,
+    16.065573770491802,
+    0.5163934426229508
+  ],
+  "scale": [
+    2.649963364230844,
+    10.46225346894643,
+    2.5726738814501187,
+    1.7272341510102274
+  ],
+  "coefficients": [
+    0.5283954257425931,
+    -0.6042150719401068,
+    -0.10576348087996601,
+    -1.8598813079205436
+  ],
+  "intercept": -0.519264400843508,
+  "calibrationCoefficient": 0.2153987844372373,
+  "calibrationIntercept": 1.1277728716395972,
+  "fitMin": [
+    25.0,
+    47.0,
+    12.0,
+    0.0
+  ],
+  "fitMax": [
+    36.0,
+    89.0,
+    22.0,
+    13.1
+  ],
+  "trainingPositiveFraction": 0.45901639344262296,
+  "scope": "Retrospective 2012 weather-label classification in Bejaia and Sidi Bel Abbes, Algeria; no live forecast",
+  "limitations": [
+    "Small observational dataset; event-label ascertainment is not independently verified.",
+    "Same-day weather includes total daily rain; unusable as an advance forecast.",
+    "No terrain, ignition, fuel, suppression or independent incident inventory.",
+    "Only one geographic/time holdout; adjacent days are correlated; calibration is fragile.",
+    "Score estimates a dataset label, not local danger, ignition probability or fire spread.",
+    "Feature contributions are associations, not causes. No operational release approved."
+  ]
+}

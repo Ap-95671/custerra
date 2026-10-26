@@ -1,0 +1,310 @@
+CUSTERRA — IMPLEMENTATION STATUS REPORT
+As of: 9 October 2026 (Asia/Kolkata)
+Scope: Work implemented through Milestone 11
+
+1. CURRENT PROJECT STATUS
+
+Custerra now has a working local application for exploring earthquake
+observations, viewing modeled weather context, retrieving historical earthquake
+exposure, assessing supplied route geometry, saving and monitoring journeys,
+and reading explicitly saved journey copies offline.
+
+Milestones 0–11 have been implemented within the scopes described below.
+Milestone 12 has not been implemented: the supplied master roadmap ends at
+Milestone 11, and a definition for Milestone 12 is still pending.
+
+The application remains an early-stage engineering prototype. It does not
+provide scientifically validated disaster predictions, comprehensive hazard
+coverage, official emergency warnings, or a determination that travel is safe.
+
+2. TECHNOLOGY AND PROJECT FOUNDATION
+
+Backend:
+- Java 21, Spring Boot 4.0.7 and Maven.
+- Spring Web MVC, Jakarta Validation, JPA and PostgreSQL.
+- JDBC repositories for historical snapshots and journey monitoring.
+- Flyway versioned database migrations.
+- DTO-based APIs, centralized error responses and explicit CORS configuration.
+- Environment-based configuration for database access and external providers.
+
+Frontend:
+- Next.js 16.4, React 19.3, TypeScript and Leaflet 1.9.4.
+- Zod validation of API responses and form data.
+- npm manifest and lockfile, ESLint, Vitest and Playwright.
+- A dedicated service worker and standalone reader for offline journey copies.
+
+The existing repository structure and original feature placeholders were
+preserved. Empty placeholders do not represent implemented features. Git has
+not been initialized as part of this work, and no commits or pull requests
+were created.
+
+3. IMPLEMENTED MILESTONES
+
+MILESTONE 0 — REPOSITORY AUDIT
+- Reviewed the existing backend/frontend scaffold and package structure.
+- Retained the com.nci.backend package and existing feature organization.
+- Documented the starting state, architectural choices and staged implementation.
+
+MILESTONE 1 — RUNNABLE BACKEND FOUNDATION
+- Established a runnable Spring Boot application and Maven build.
+- Added PostgreSQL configuration, health endpoint and standardized errors.
+- Configured validation, CORS and environment-based settings.
+- Added initial MVC and application regression coverage.
+
+MILESTONE 2 — HAZARD DOMAIN AND STORED-DATA APIs
+- Implemented the hazard entity, repository, service, mapper and response DTOs.
+- Represented eleven hazard categories with source provenance, information
+  type, severity, confidence, coordinates and timestamps.
+- Added paginated hazard listing, type/severity filters and UUID lookup.
+- Added the initial Flyway schema with constraints and provider-ID uniqueness.
+- Preserved UNKNOWN and null values where evidence is unavailable.
+- Did not seed fabricated production events or expose public hazard writes.
+
+MILESTONE 3 — REAL EARTHQUAKE PROVIDER
+- Integrated the official USGS earthquake catalog through a provider abstraction.
+- Normalized GeoJSON coordinates, source IDs, times, magnitude and depth.
+- Retained attribution, evidence links, observation and source-update times.
+- Added response-size limits, configurable timeouts and provider error handling.
+- Kept malformed responses distinct from successful empty results.
+
+MILESTONE 4 — NEARBY HAZARD SEARCH
+- Added coordinate-based earthquake searches with distance filtering.
+- Supported a radius of 1–1,000 km and lookback of 1–30 days.
+- Limited recent results to 200 events, using an extra-record probe to identify
+  truncation.
+- Returned query scope, distances, retrieval time, source metadata and coverage.
+- Kept live nearby observations separate from automatically persisted hazards.
+
+MILESTONE 5 — EXPLAINABLE LOCATION ASSESSMENT
+- Added a versioned risk endpoint and replaceable scoring strategy architecture.
+- Implemented an experimental recent-earthquake activity indicator using
+  magnitude, distance and recency factors.
+- Exposed evidence, calculation inputs, contributions, confidence and limitations.
+- Kept overall and unsupported-hazard risks UNKNOWN.
+- Withheld the earthquake aggregate score when evidence is empty, truncated or
+  lacks usable magnitudes.
+- Did not present the indicator as a probability, prediction or validated safety
+  score.
+
+MILESTONE 6 — INTERACTIVE MAP FRONTEND
+- Made the Next.js/React frontend runnable.
+- Added coordinate entry, map-click selection and named location presets.
+- Added earthquake markers, popups, source cards and a layer toggle.
+- Added risk explanations and expandable event evidence.
+- Added loading, error, empty and incomplete-coverage states.
+- Added abortable requests and protection against delayed previous-selection
+  responses overwriting a newer selection.
+- Added responsive desktop/mobile layouts and map attribution.
+
+MILESTONE 7 — WEATHER AND ENVIRONMENTAL CONTEXT
+- Added a weather-provider interface and Open-Meteo integration.
+- Added temperature at 2 m, rainfall, total precipitation and wind at 10 m.
+- Preserved units, provider aggregation interval, model grid coordinates,
+  validity time, retrieval time and source credit.
+- Added explicit missing-data, partial-data and stale-data indicators.
+- Kept weather independent from earthquake assessment failures and scoring.
+- Clearly labeled weather as modeled context, not a station reading or warning.
+- Documented Open-Meteo attribution and the default free API's non-commercial
+  access terms; commercial deployment needs an appropriate arrangement.
+
+MILESTONE 8 — HISTORICAL EARTHQUAKE EXPOSURE
+- Added historical catalog retrieval with explicit dates, radius and magnitude.
+- Supported 1–3,660-day windows, starting in 1900 or later and ending in the past.
+- Saved immutable snapshots containing query, normalized event evidence,
+  source metadata, retrieval time, calculation version and results.
+- Added snapshot retrieval by UUID without refetching the provider.
+- Calculated observed annual frequency as:
+    event count / (window duration in days / 365.2425)
+- Used a half-open time window: from is inclusive; to is exclusive.
+- Retained at most 2,000 events and withheld frequency for truncated results.
+- Distinguished historical catalog exposure from recurrence probability or
+  future disaster risk. Zero records do not establish safety.
+
+MILESTONE 9 — ROUTE ASSESSMENT FOUNDATION
+- Added route request/response models and a dedicated assessment service.
+- Accepted 2–20 ordered waypoints, a 1–100 km corridor, a 1–30-day lookback,
+  and a magnitude threshold.
+- Supported total supplied-route lengths of 0.001–900 km.
+- Calculated minimum earthquake epicenter distance to great-circle segments,
+  including endpoint, date-line and polar cases.
+- Used one bounded enclosing catalog query, then filtered by route proximity.
+- Returned closest segment, distance, observation evidence and coverage limits.
+- Kept overall route risk UNKNOWN.
+- Did not generate road directions, travel times, transport-mode routing or
+  recommendations for a safer route.
+
+MILESTONE 10 — SAVED JOURNEYS AND MONITORING
+- Added persistent PAUSED/ACTIVE journeys and lifecycle APIs.
+- Added manual checks and an opt-in periodic scheduler.
+- Added a UI showing whether scheduling is enabled on the server.
+- Made the first complete check establish a baseline without generating notices.
+- Generated deduplicated in-app notices for later, previously unseen observations
+  that meet the journey's corridor and magnitude filters.
+- Retained evidence and explanations with every notice.
+- Used row locking, transactions and uniqueness constraints to prevent duplicate
+  notices from overlapping checks.
+- Preserved the previous complete-check time after provider failure or incomplete
+  coverage; did not consume unseen events on truncated checks.
+- Added paging, pause/resume and deletion with related-record cleanup.
+- Kept scheduled checks off by default. The default interval is five minutes;
+  each cycle processes up to ten due active journeys.
+- Did not implement email, SMS, push or WebSocket notification delivery.
+
+MILESTONE 11 — OFFLINE JOURNEY COPIES
+- Added an explicit Save offline copy action for a selected journey.
+- Saved waypoints, route filters, assessment evidence, original timestamps,
+  errors and up to the latest fifty notices.
+- Added a standalone reader that opens on disconnected navigation and reload
+  after it has been prepared online.
+- Limited storage to five copies and approximately one MiB, with seven-day expiry.
+- Separated copies by source server and journey ID.
+- Added per-copy removal, clear-all controls and local cleanup following deletion
+  through the current browser's journey UI.
+- Preserved UNKNOWN risk, incomplete coverage and failed-check indicators.
+- Cached only four dedicated reader assets; no map tiles or API responses.
+- Kept offline mode read-only: no queued changes, checks or background monitoring.
+- Added visible privacy and storage-availability explanations. Copies remain
+  readable by anyone using the same browser profile and may be evicted earlier.
+
+4. USER-FACING PAGES
+
+http://localhost:3000/
+  Location explorer with earthquake map, activity assessment and weather.
+
+http://localhost:3000/history
+  Historical earthquake queries, saved snapshots and observed frequency.
+
+http://localhost:3000/routes
+  Supplied-waypoint assessment, saved journeys, monitoring and offline saving.
+
+http://localhost:3000/offline.html
+  Read-only offline journey copies and local removal controls.
+
+/map and /dashboard also render the location explorer. Other unfinished
+placeholder pages do not imply completed product functionality.
+
+5. IMPLEMENTED API SURFACE
+
+GET    /api/v1/health
+GET    /api/v1/hazards
+GET    /api/v1/hazards/{id}
+GET    /api/v1/hazards/nearby
+GET    /api/v1/risk/location
+GET    /api/v1/weather/location
+POST   /api/v1/history/earthquakes
+GET    /api/v1/history/earthquakes/{id}
+POST   /api/v1/routes/assessment
+POST   /api/v1/journeys
+GET    /api/v1/journeys
+GET    /api/v1/journeys/monitoring
+GET    /api/v1/journeys/{id}
+PATCH  /api/v1/journeys/{id}
+DELETE /api/v1/journeys/{id}
+POST   /api/v1/journeys/{id}/check
+GET    /api/v1/journeys/{id}/notices
+
+Stateless provider failures use 502/504. A saved-journey check records provider
+failure or incomplete coverage in lastError and returns the updated journey;
+clients must inspect this field rather than treating HTTP 200 as fresh evidence.
+
+6. DATABASE AND LOCAL SETUP
+
+Flyway V1:
+- Hazard-event storage and domain constraints.
+
+Flyway V2:
+- Historical snapshots.
+- Saved journeys.
+- Seen-event identities for monitoring.
+- Informational notices with deduplication and cascade deletion.
+
+A dedicated local PostgreSQL database and private .env configuration were
+created during local setup. Credentials are intentionally excluded from this
+report. The API binds to loopback by default because saved journeys currently
+belong to one installation without user authentication or ownership isolation.
+
+At the latest local launch check:
+- Frontend: http://localhost:3000 — returned HTTP 200.
+- Backend: http://localhost:8080/api/v1/health — returned status UP.
+- Scheduled journey checking remained disabled by configuration.
+
+These are local addresses, not public deployments. Availability depends on the
+local processes remaining running.
+
+7. VERIFICATION COMPLETED
+
+Latest completed backend verification:
+- 92 tests passed, with zero failures or skips.
+- Includes 12 PostgreSQL tests.
+- Executable backend JAR packaged successfully.
+
+Latest completed frontend verification:
+- 13 unit/service tests passed.
+- 12 browser tests passed.
+- ESLint, TypeScript checking and production build passed.
+
+Coverage includes:
+- Validation, error responses, provider parsing and request bounds.
+- Hazard persistence and migration behavior.
+- Deterministic scoring and unknown/incomplete states.
+- Historical frequency and snapshot persistence.
+- Route geometry, proximity and filtering.
+- Monitoring baseline, failure handling and concurrent notice deduplication.
+- Journey lifecycle and scheduler behavior.
+- Offline expiry, capacity, malformed data, safe text rendering, disconnected
+  navigation/reload, local removal and reconnecting.
+
+Separate live checks connected the UI, backend, PostgreSQL and actual USGS /
+Open-Meteo services. Historical evidence was saved and reloaded; route assessment
+and journey activation/check/pause/deletion were exercised. Desktop and mobile
+screenshots were reviewed, including the offline reader, with no observed
+browser errors or horizontal overflow in the recorded checks.
+
+The test counts above summarize completed verification runs; this report does
+not imply that all tests were rerun while producing the document. Production
+hazards are provider data; synthetic events are restricted to automated tests.
+
+8. CURRENT LIMITATIONS AND UNIMPLEMENTED WORK
+
+- Earthquakes are the only connected hazard-event category; the domain's eleven
+  categories do not mean eleven live data integrations exist.
+- Weather is displayed as context and does not alter risk scores.
+- There is no scientifically calibrated all-hazard assessment or prediction model.
+- Shared catalog ingestion, correction/deletion processing and provider caching
+  remain future work. Historical evidence is stored as immutable snapshots.
+- Route geometry comes from supplied waypoints; road routing is not implemented.
+- Monitoring is best-effort and can miss events because of lookback windows,
+  outages, missing magnitudes, truncation or catalog revisions.
+- New-observation notices are informational, not official emergency warnings or
+  a calibrated measurement of increased danger.
+- Authentication, account ownership and multi-user access control are absent.
+- No outbound email/SMS/push notification service is implemented.
+- Offline maps, cached weather/history, offline edits and background sync are absent.
+- Browser copies are not encrypted or guaranteed to remain available.
+- ML-service and infrastructure placeholders are not working ML/deployment systems.
+- Milestone 12 needs an agreed definition before implementation.
+
+9. PROJECT DOCUMENTATION
+
+README.md
+  Setup, current status, configuration and verification commands.
+docs/repository-audit.md
+  Milestone completion history and verification records.
+docs/architecture.md
+  Module boundaries and architecture decisions.
+docs/api-design.md
+  API contracts and cross-references.
+docs/data-sources.md
+  Providers, attribution, licensing and freshness limitations.
+docs/risk-model.md
+  Experimental earthquake activity calculation and interpretation.
+docs/frontend.md
+  Frontend workflows, requests, maps and testing.
+docs/history-and-journeys.md
+  Historical, route and monitoring contracts and implementation details.
+docs/offline.md
+  Offline workflow, retention, deployment and limitations.
+
+Report prepared from the implemented repository, project documentation and
+completed work recorded in this session. No credentials or private connection
+secrets are included.

@@ -1,0 +1,94 @@
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  application:
+    name: custerra-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/custerra}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      connection-timeout: 10000
+      maximum-pool-size: 10
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  sql:
+    init:
+      mode: never
+  flyway:
+    clean-disabled: true
+    baseline-on-migrate: false
+
+server:
+  shutdown: graceful
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${SERVER_PORT:8080}
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:false}
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+
+custerra:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  providers:
+    usgs:
+      query-url: ${USGS_QUERY_URL:https://earthquake.usgs.gov/fdsnws/event/1/query}
+      connect-timeout-ms: ${USGS_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${USGS_READ_TIMEOUT_MS:10000}
+    firms:
+      map-key: ${FIRMS_MAP_KEY:}
+      connect-timeout-ms: ${FIRMS_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${FIRMS_READ_TIMEOUT_MS:10000}
+    gdacs:
+      enabled: ${GDACS_ENABLED:true}
+      connect-timeout-ms: ${GDACS_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${GDACS_READ_TIMEOUT_MS:10000}
+    planning:
+      geocoding-url: ${GEOCODING_URL:https://geocoding-api.open-meteo.com/v1/search}
+      routing-url: ${ROUTING_URL:https://routing.openstreetmap.de/routed-car/route/v1/driving}
+      connect-timeout-ms: ${PLANNING_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${PLANNING_READ_TIMEOUT_MS:10000}
+    open-meteo:
+      url: ${OPEN_METEO_URL:https://api.open-meteo.com/v1/forecast}
+      connect-timeout-ms: ${OPEN_METEO_CONNECT_TIMEOUT_MS:3000}
+      read-timeout-ms: ${OPEN_METEO_READ_TIMEOUT_MS:10000}
+  monitoring:
+    enabled: ${MONITORING_ENABLED:false}
+    interval-ms: ${MONITORING_INTERVAL_MS:300000}
+
+  notifications:
+    enabled: ${NOTIFICATIONS_ENABLED:false}
+    push:
+      public-key: ${VAPID_PUBLIC_KEY:}
+      private-key: ${VAPID_PRIVATE_KEY:}
+      subject: ${VAPID_SUBJECT:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        custerra.provider.latency: true

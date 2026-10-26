@@ -1,0 +1,6 @@
+package com.nci.backend.hazard.model;
+
+public enum HazardType {
+    EARTHQUAKE, FLOOD, LANDSLIDE, WILDFIRE, TSUNAMI, CYCLONE,
+    HURRICANE, TYPHOON, TORNADO, VOLCANIC_ERUPTION, SEVERE_WEATHER
+}

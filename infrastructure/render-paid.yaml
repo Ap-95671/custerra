@@ -1,0 +1,55 @@
+# Creates paid resources when applied. Review plans and region in Render before deployment.
+services:
+  - type: pserv
+    name: custerra-api
+    runtime: docker
+    dockerfilePath: ./infrastructure/Dockerfile.backend
+    dockerContext: .
+    plan: 1c-2g
+    region: singapore
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+      - key: SESSION_COOKIE_SECURE
+        value: 'true'
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: OPS_TOKEN
+        generateValue: true
+      # Use the external TLS hostname; Render internal hosts use self-signed certificates.
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        fromDatabase: {name: custerra-db, property: port}
+      - key: DB_NAME
+        fromDatabase: {name: custerra-db, property: database}
+      - key: DB_USERNAME
+        fromDatabase: {name: custerra-db, property: user}
+      - key: DB_PASSWORD
+        fromDatabase: {name: custerra-db, property: password}
+      - key: MONITORING_ENABLED
+        value: 'false'
+      - key: NOTIFICATIONS_ENABLED
+        value: 'false'
+  - type: web
+    name: custerra-web
+    runtime: docker
+    dockerfilePath: ./infrastructure/Dockerfile.frontend
+    dockerContext: .
+    plan: 0.5c-512mb
+    region: singapore
+    healthCheckPath: /health
+    envVars:
+      - key: BACKEND_HOST
+        fromService: {name: custerra-api, type: pserv, property: host}
+      - key: PORT
+        value: '3000'
+databases:
+  - name: custerra-db
+    plan: 0.5c-1g
+    region: singapore
+    diskSizeGB: 5
+    postgresMajorVersion: "17"
+    databaseName: custerra
+    user: custerra
+    ipAllowList: []

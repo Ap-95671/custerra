@@ -1,0 +1,316 @@
+{
+  "datasetRows": 243,
+  "rejectedRows": [
+    {
+      "line": 171,
+      "reason": "Malformed column count or label"
+    }
+  ],
+  "excludedRows": 121,
+  "partitions": {
+    "train": [
+      "BEJAIA:2012-06-01",
+      "BEJAIA:2012-06-02",
+      "BEJAIA:2012-06-03",
+      "BEJAIA:2012-06-04",
+      "BEJAIA:2012-06-05",
+      "BEJAIA:2012-06-06",
+      "BEJAIA:2012-06-07",
+      "BEJAIA:2012-06-08",
+      "BEJAIA:2012-06-09",
+      "BEJAIA:2012-06-10",
+      "BEJAIA:2012-06-11",
+      "BEJAIA:2012-06-12",
+      "BEJAIA:2012-06-13",
+      "BEJAIA:2012-06-14",
+      "BEJAIA:2012-06-15",
+      "BEJAIA:2012-06-16",
+      "BEJAIA:2012-06-17",
+      "BEJAIA:2012-06-18",
+      "BEJAIA:2012-06-19",
+      "BEJAIA:2012-06-20",
+      "BEJAIA:2012-06-21",
+      "BEJAIA:2012-06-22",
+      "BEJAIA:2012-06-23",
+      "BEJAIA:2012-06-24",
+      "BEJAIA:2012-06-25",
+      "BEJAIA:2012-06-26",
+      "BEJAIA:2012-06-27",
+      "BEJAIA:2012-06-28",
+      "BEJAIA:2012-06-29",
+      "BEJAIA:2012-06-30",
+      "BEJAIA:2012-07-01",
+      "BEJAIA:2012-07-02",
+      "BEJAIA:2012-07-03",
+      "BEJAIA:2012-07-04",
+      "BEJAIA:2012-07-05",
+      "BEJAIA:2012-07-06",
+      "BEJAIA:2012-07-07",
+      "BEJAIA:2012-07-08",
+      "BEJAIA:2012-07-09",
+      "BEJAIA:2012-07-10",
+      "BEJAIA:2012-07-11",
+      "BEJAIA:2012-07-12",
+      "BEJAIA:2012-07-13",
+      "BEJAIA:2012-07-14",
+      "BEJAIA:2012-07-15",
+      "BEJAIA:2012-07-16",
+      "BEJAIA:2012-07-17",
+      "BEJAIA:2012-07-18",
+      "BEJAIA:2012-07-19",
+      "BEJAIA:2012-07-20",
+      "BEJAIA:2012-07-21",
+      "BEJAIA:2012-07-22",
+      "BEJAIA:2012-07-23",
+      "BEJAIA:2012-07-24",
+      "BEJAIA:2012-07-25",
+      "BEJAIA:2012-07-26",
+      "BEJAIA:2012-07-27",
+      "BEJAIA:2012-07-28",
+      "BEJAIA:2012-07-29",
+      "BEJAIA:2012-07-30",
+      "BEJAIA:2012-07-31"
+    ],
+    "calibration": [
+      "BEJAIA:2012-08-01",
+      "BEJAIA:2012-08-02",
+      "BEJAIA:2012-08-03",
+      "BEJAIA:2012-08-04",
+      "BEJAIA:2012-08-05",
+      "BEJAIA:2012-08-06",
+      "BEJAIA:2012-08-07",
+      "BEJAIA:2012-08-08",
+      "BEJAIA:2012-08-09",
+      "BEJAIA:2012-08-10",
+      "BEJAIA:2012-08-11",
+      "BEJAIA:2012-08-12",
+      "BEJAIA:2012-08-13",
+      "BEJAIA:2012-08-14",
+      "BEJAIA:2012-08-15",
+      "BEJAIA:2012-08-16",
+      "BEJAIA:2012-08-17",
+      "BEJAIA:2012-08-18",
+      "BEJAIA:2012-08-19",
+      "BEJAIA:2012-08-20",
+      "BEJAIA:2012-08-21",
+      "BEJAIA:2012-08-22",
+      "BEJAIA:2012-08-23",
+      "BEJAIA:2012-08-24",
+      "BEJAIA:2012-08-25",
+      "BEJAIA:2012-08-26",
+      "BEJAIA:2012-08-27",
+      "BEJAIA:2012-08-28",
+      "BEJAIA:2012-08-29",
+      "BEJAIA:2012-08-30",
+      "BEJAIA:2012-08-31"
+    ],
+    "test": [
+      "SIDI_BEL_ABBES:2012-09-01",
+      "SIDI_BEL_ABBES:2012-09-02",
+      "SIDI_BEL_ABBES:2012-09-03",
+      "SIDI_BEL_ABBES:2012-09-04",
+      "SIDI_BEL_ABBES:2012-09-05",
+      "SIDI_BEL_ABBES:2012-09-06",
+      "SIDI_BEL_ABBES:2012-09-07",
+      "SIDI_BEL_ABBES:2012-09-08",
+      "SIDI_BEL_ABBES:2012-09-09",
+      "SIDI_BEL_ABBES:2012-09-10",
+      "SIDI_BEL_ABBES:2012-09-11",
+      "SIDI_BEL_ABBES:2012-09-12",
+      "SIDI_BEL_ABBES:2012-09-13",
+      "SIDI_BEL_ABBES:2012-09-14",
+      "SIDI_BEL_ABBES:2012-09-15",
+      "SIDI_BEL_ABBES:2012-09-16",
+      "SIDI_BEL_ABBES:2012-09-17",
+      "SIDI_BEL_ABBES:2012-09-18",
+      "SIDI_BEL_ABBES:2012-09-19",
+      "SIDI_BEL_ABBES:2012-09-20",
+      "SIDI_BEL_ABBES:2012-09-21",
+      "SIDI_BEL_ABBES:2012-09-22",
+      "SIDI_BEL_ABBES:2012-09-23",
+      "SIDI_BEL_ABBES:2012-09-24",
+      "SIDI_BEL_ABBES:2012-09-25",
+      "SIDI_BEL_ABBES:2012-09-26",
+      "SIDI_BEL_ABBES:2012-09-27",
+      "SIDI_BEL_ABBES:2012-09-28",
+      "SIDI_BEL_ABBES:2012-09-29",
+      "SIDI_BEL_ABBES:2012-09-30"
+    ]
+  },
+  "baseline": {
+    "n": 30,
+    "positiveCount": 16,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "rocAuc": 0.5,
+    "prAucAveragePrecision": 0.5333333333333333,
+    "brier": 0.25441189644360834,
+    "ece5Bins": 0.07431693989071048,
+    "calibrationBins": [
+      {
+        "lower": 0.4,
+        "count": 30,
+        "meanScore": 0.45901639344262285,
+        "observedFraction": 0.5333333333333333
+      }
+    ],
+    "confusionMatrixTN_FP_FN_TP": [
+      14,
+      0,
+      16,
+      0
+    ]
+  },
+  "uncalibratedLogistic": {
+    "n": 30,
+    "positiveCount": 16,
+    "precision": 0.9230769230769231,
+    "recall": 0.75,
+    "f1": 0.8275862068965517,
+    "rocAuc": 0.8705357142857142,
+    "prAucAveragePrecision": 0.8977182722248511,
+    "brier": 0.15056359745299833,
+    "ece5Bins": 0.08689466268967234,
+    "calibrationBins": [
+      {
+        "lower": 0.0,
+        "count": 6,
+        "meanScore": 0.07167340281967523,
+        "observedFraction": 0.0
+      },
+      {
+        "lower": 0.2,
+        "count": 9,
+        "meanScore": 0.3030560101373783,
+        "observedFraction": 0.4444444444444444
+      },
+      {
+        "lower": 0.4,
+        "count": 4,
+        "meanScore": 0.49936484012992466,
+        "observedFraction": 0.5
+      },
+      {
+        "lower": 0.6000000000000001,
+        "count": 4,
+        "meanScore": 0.705353546283064,
+        "observedFraction": 0.75
+      },
+      {
+        "lower": 0.8,
+        "count": 7,
+        "meanScore": 0.8966889856199316,
+        "observedFraction": 1.0
+      }
+    ],
+    "confusionMatrixTN_FP_FN_TP": [
+      13,
+      1,
+      4,
+      12
+    ]
+  },
+  "calibratedLogistic": {
+    "n": 30,
+    "positiveCount": 16,
+    "precision": 0.5714285714285714,
+    "recall": 1.0,
+    "f1": 0.7272727272727273,
+    "rocAuc": 0.8705357142857142,
+    "prAucAveragePrecision": 0.8977182722248511,
+    "brier": 0.24072569923026718,
+    "ece5Bins": 0.22263411044416612,
+    "calibrationBins": [
+      {
+        "lower": 0.4,
+        "count": 3,
+        "meanScore": 0.4911108220628531,
+        "observedFraction": 0.0
+      },
+      {
+        "lower": 0.6000000000000001,
+        "count": 19,
+        "meanScore": 0.7293099926195349,
+        "observedFraction": 0.47368421052631576
+      },
+      {
+        "lower": 0.8,
+        "count": 8,
+        "meanScore": 0.8313998765793424,
+        "observedFraction": 0.875
+      }
+    ],
+    "confusionMatrixTN_FP_FN_TP": [
+      2,
+      12,
+      0,
+      16
+    ]
+  },
+  "errors": [
+    {
+      "id": "SIDI_BEL_ABBES:2012-09-01",
+      "label": 0,
+      "score": 0.7022801591033798
+    },
+    {
+      "id": "SIDI_BEL_ABBES:2012-09-02",
+      "label": 0,
+      "score": 0.7359489575446623
+    },
+    {
+      "id": "SIDI_BEL_ABBES:2012-09-04",
+      "label": 0,
+      "score": 0.7525744450408307
+    },
+    {
+      "id": "SIDI_BEL_ABBES:2012-09-05",
+      "label": 0,
+      "score": 0.5827089009336839
+    },
+    {
+      "id": "SIDI_BEL_ABBES:2012-09-10",
+      "label": 0,
+      "score": 0.6816089911523096
+    },
+    {
+      "id": "SIDI_BEL_ABBES:2012-09-11",
+      "label": 0,
+      "score": 0.7465991166604626
+    },
+    {
+      "id": "SIDI_BEL_ABBES:2012-09-20",
+      "label": 0,
+      "score": 0.8024087492463874
+    },
+    {
+      "id": "SIDI_BEL_ABBES:2012-09-24",
+      "label": 0,
+      "score": 0.6930181780474338
+    },
+    {
+      "id": "SIDI_BEL_ABBES:2012-09-25",
+      "label": 0,
+      "score": 0.7355798395718968
+    },
+    {
+      "id": "SIDI_BEL_ABBES:2012-09-28",
+      "label": 0,
+      "score": 0.6291922265752534
+    },
+    {
+      "id": "SIDI_BEL_ABBES:2012-09-29",
+      "label": 0,
+      "score": 0.7311756711971727
+    },
+    {
+      "id": "SIDI_BEL_ABBES:2012-09-30",
+      "label": 0,
+      "score": 0.7067331051876763
+    }
+  ],
+  "testOutsideFitEnvelope": 9,
+  "releaseDecision": "RESEARCH_ONLY: insufficient external validation; no live risk integration",
+  "calibrationMethod": "Regularized sigmoid fit only on August Bejaia; fixed C=1 and threshold=0.5; test used once for reporting"
+}

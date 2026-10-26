@@ -1,0 +1,43 @@
+# Approved free demo. PostgreSQL expires after 30 days; no managed backups.
+# custerra-demo-db already exists in the operator workspace.
+services:
+  - type: web
+    name: custerra-demo
+    runtime: docker
+    dockerfilePath: ./infrastructure/Dockerfile.demo
+    dockerContext: .
+    plan: free
+    region: singapore
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+      - key: SESSION_COOKIE_SECURE
+        value: 'true'
+      - key: OPS_TOKEN
+        generateValue: true
+      # External hostname from the database dashboard, without user/password.
+      # Require verify-full; allowlist only the demo service's outbound IP ranges.
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        fromDatabase: {name: custerra-demo-db, property: port}
+      - key: DB_NAME
+        fromDatabase: {name: custerra-demo-db, property: database}
+      - key: DB_USERNAME
+        fromDatabase: {name: custerra-demo-db, property: user}
+      - key: DB_PASSWORD
+        fromDatabase: {name: custerra-demo-db, property: password}
+      - key: MONITORING_ENABLED
+        value: 'false'
+      - key: NOTIFICATIONS_ENABLED
+        value: 'false'
+      - key: PORT
+        value: '10000'
+databases:
+  - name: custerra-demo-db
+    plan: free
+    region: singapore
+    postgresMajorVersion: "17"
+    # Closed until the demo service's outbound ranges have been approved.
+    ipAllowList: []

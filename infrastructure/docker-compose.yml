@@ -1,0 +1,37 @@
+# Local deployment rehearsal only. Production uses managed PostgreSQL.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: custerra
+      POSTGRES_USER: custerra
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U custerra -d custerra']
+      interval: 5s
+      retries: 12
+  backend:
+    build: {context: .., dockerfile: infrastructure/Dockerfile.backend}
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/custerra
+      DB_USERNAME: custerra
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
+      OPS_TOKEN: ${OPS_TOKEN:?Set an operations token of at least 32 characters}
+    depends_on:
+      db: {condition: service_healthy}
+    ports: ['127.0.0.1:8080:8080']
+    stop_grace_period: 40s
+  web:
+    build: {context: .., dockerfile: infrastructure/Dockerfile.frontend}
+    environment:
+      BACKEND_INTERNAL_URL: http://backend:8080
+    ports: ['127.0.0.1:3000:3000']
+    depends_on: [backend]
+  research:
+    profiles: [research]
+    build: {context: .., dockerfile: infrastructure/Dockerfile.ml}
+    ports: ['127.0.0.1:8001:8001']
+volumes:
+  postgres-data:

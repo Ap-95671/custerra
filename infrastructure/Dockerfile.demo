@@ -1,0 +1,33 @@
+# Free demo only: keep the API on loopback and share one 512 MB web instance.
+FROM maven:3.9-eclipse-temurin-21 AS backend
+WORKDIR /source
+COPY backend/pom.xml ./pom.xml
+RUN mvn -q dependency:go-offline
+COPY backend/src ./src
+RUN mvn -q -DskipTests package
+
+FROM node:24-bookworm-slim AS frontend
+WORKDIR /app
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+ENV NEXT_TELEMETRY_DISABLED=1 NEXT_PUBLIC_API_BASE_URL="" NEXT_PUBLIC_DEMO_MODE=true
+RUN npm run build
+
+FROM eclipse-temurin:21-jre-jammy AS java
+FROM node:24-bookworm-slim
+COPY --from=java /opt/java/openjdk /opt/java/openjdk
+ENV JAVA_HOME=/opt/java/openjdk PATH="/opt/java/openjdk/bin:${PATH}"
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=10000
+ENV SERVER_ADDRESS=127.0.0.1 SERVER_PORT=8080 BACKEND_INTERNAL_URL=http://127.0.0.1:8080
+ENV JAVA_TOOL_OPTIONS="-Xmx192m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=48m -Xss512k -XX:ActiveProcessorCount=1 -XX:+UseSerialGC"
+ENV NODE_OPTIONS="--max-old-space-size=96"
+WORKDIR /app
+COPY --from=backend /source/target/backend-0.0.1-SNAPSHOT.jar ./backend.jar
+COPY --from=frontend --chown=node:node /app/.next/standalone ./
+COPY --from=frontend --chown=node:node /app/.next/static ./.next/static
+COPY --from=frontend --chown=node:node /app/public ./public
+COPY infrastructure/start-backend.sh infrastructure/start-demo.sh ./
+USER node
+EXPOSE 10000
+ENTRYPOINT ["bash", "/app/start-demo.sh"]
