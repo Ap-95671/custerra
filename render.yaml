@@ -39,5 +39,10 @@ databases:
     plan: free
     region: singapore
     postgresMajorVersion: "17"
-    # Closed until the demo service's outbound ranges have been approved.
-    ipAllowList: []
+    # User-approved Render Singapore ranges; shared with other regional services.
+    # Database credentials and verified TLS remain required.
+    ipAllowList:
+      - source: 74.220.52.0/24
+        description: Custerra Render Singapore shared egress 1
+      - source: 74.220.60.0/24
+        description: Custerra Render Singapore shared egress 2
