@@ -2,7 +2,7 @@
 
 The selected hosted target is a **free demo on Render**, as requested by the user. It combines the existing Next.js and Spring Boot processes in one 512 MB container, with Spring bound only to loopback, and uses free managed PostgreSQL. The browser still makes same-origin `/api/v1` calls. Research remains separate and is not publicly deployed.
 
-`render.yaml` selects free resources. `infrastructure/render-paid.yaml` preserves the optional separate web/private-API architecture, but paid hosting was declined and must not be applied without approval. A free PostgreSQL 17 instance is Available in Singapore and expires November 24, 2026. The app itself is not yet published. See the [current deployment record](deployment-proposal.md) for remaining source/access and hosted acceptance work.
+`render.yaml` selects free resources. `infrastructure/render-paid.yaml` preserves the optional separate web/private-API architecture, but paid hosting was declined and must not be applied without approval. A free PostgreSQL 17 instance is Available in Singapore and expires November 24, 2026. The app is live at [custerra-demo.onrender.com](https://custerra-demo.onrender.com); hosted acceptance passed on October 30, 2026. See the [current deployment record](deployment-proposal.md) for evidence and limits.
 
 Free Render apps sleep when idle; PostgreSQL expires after 30 days and has no managed backups. The demo is unsuitable for continuous monitoring or durable user records. Background monitoring and outbound dispatch are disabled, and the UI carries a temporary-demo notice. Local and future production architecture remains available separately.
 
@@ -55,10 +55,22 @@ References: [Render Blueprint fields](https://render.com/docs/blueprint-spec), [
 
 ## Local verification result — 2026-10-25
 
-Frontend, backend and research images built successfully. An isolated Compose database passed migrations through V7 and readiness. Actual HTTP checks passed registration/login through the proxy, session cookies/CSRF, the owned notification inbox, API-key issuance, admitted-request accounting, revocation and logout. The separate research container returned scoped experimental metadata over HTTP. Verification containers were stopped afterward; their dedicated test volume was retained. A separate live push smoke also passed provider acceptance and native Chrome receipt. Render is signed in and a free database has been created. The user approved a private repository and selected a free demo; source publication/Render access and hosted app verification remain pending. No paid resources were created. See the [deployment proposal](deployment-proposal.md).
+Frontend, backend and research images built successfully. An isolated Compose database passed migrations through V7 and readiness. Actual HTTP checks passed registration/login through the proxy, session cookies/CSRF, the owned notification inbox, API-key issuance, admitted-request accounting, revocation and logout. The separate research container returned scoped experimental metadata over HTTP. Verification containers were stopped afterward; their dedicated test volume was retained. A separate live push smoke also passed provider acceptance and native Chrome receipt. The private source repository is published, Render access is configured and the free demo passed hosted acceptance on October 30, 2026. No paid resources were created. See the [deployment proposal](deployment-proposal.md).
 
 ## Free demo rehearsal — 2026-10-26
 
 The combined container passed the same HTTP smoke under 512 MB memory and 0.5 CPU limits, with about 443 MiB observed memory and no OOM event. The API is not bound publicly. The supervisor gates web startup on database readiness and forwards shutdown to both processes. This small smoke does not establish concurrency capacity.
 
 Use `CUSTERRA_SMOKE_READINESS_URL=http://127.0.0.1:3000/health python3 scripts/verify-local-deployment.py` for the combined local image. The separate Compose rehearsal retains the default direct readiness URL. `CUSTERRA_SMOKE_BASE_URL` can select an explicitly authorized hosted demo; the smoke creates a test account and revokes its test API key.
+
+### Hosted demo acceptance — October 30, 2026
+
+Render deploy `dep-dbiaeqbncjis73aq7rag` succeeded on source commit `88bfc649e5038e172e25d02da3db3daebbc4dcd1`. Startup logs show PostgreSQL 17.11 over the external hostname with `sslmode=verify-full` and the JVM trust store, seven applied Flyway migrations and both Spring Boot/Next.js ready. Spring process startup took approximately 167 seconds; allow several minutes after an idle spin-down.
+
+The actual HTTPS deployment passed `scripts/verify-local-deployment.py`: readiness, registration/login, session and CSRF, owned inbox, hidden internal operations endpoint, API-key issuance, admitted-request accounting, revocation rejection and logout. No credentials were printed. A synthetic test account remains in this temporary database with its API key revoked. Browser inspection confirmed the map interface, source distinctions, UNKNOWN risk and the demo limitations notice.
+
+Database inbound rules contain only the two user-approved shared Singapore Render ranges (`74.220.52.0/24`, `74.220.60.0/24`). They are shared regional addresses, not app-exclusive IPs; authentication and verified TLS remain required. The same rules are in the root Blueprint. Do not replace them with `0.0.0.0/0`.
+
+This completes the selected free-demo acceptance. Protected metrics/provider diagnostics exist on the loopback backend and were tested locally; an external metrics collector/alert integration is not configured for this free demo. Durable backups, restore drills, continuous monitoring and operational model validation remain future production work. Live FIRMS verification remains explicitly deferred.
+
+The live Manali query retrieved USGS/GDACS responses with explicit coverage. Open-Meteo returned upstream HTTP 502 on the initial attempt and retry; weather context displayed unavailable. FIRMS remained NOT_CONFIGURED as expected. These provider gaps are not counted as successful live weather/FIRMS verification.
