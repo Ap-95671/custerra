@@ -4,7 +4,7 @@ Custerra is a natural-hazard intelligence and travel-risk platform in early deve
 
 ## Current status
 
-Milestones 12–18 and the Milestone 20 API foundation are implemented and verified. Milestone 19 is verified locally in containers; hosted deployment remains pending. Live FIRMS verification remains deferred:
+Milestones 12–18 and the Milestone 20 API foundation are implemented and verified. Milestone 19 is verified locally and deployed as a free demo at [custerra-demo.onrender.com](https://custerra-demo.onrender.com). Hosted acceptance passed on October 30, 2026; continuous production hosting remains outside the selected free-demo scope. Live FIRMS verification remains deferred:
 
 - Repository audit and preservation of the existing feature scaffold and `com.nci.backend` package.
 - Java 21 / Spring Boot 4.0.7 / Maven API with Web MVC, Jakarta Validation, JPA and PostgreSQL.
@@ -187,4 +187,4 @@ Journey monitoring now supports multiple providers with independent baselines, m
 
 ## Research, deployment and external API
 
-See the [research model card](docs/ml.md), [deployment runbook](docs/deployment.md), [B2B API guide](docs/b2b-api.md) and [OpenAPI contract](docs/b2b-openapi.yaml). Local container smoke tests passed for all three services. The user selected a free Render demo. Its free PostgreSQL instance is available, and the combined app container passed a 512 MB local rehearsal. Source publication/access, database network/TLS configuration and hosted app verification are still pending. Review the [deployment proposal](docs/deployment-proposal.md); the service has not been published. The research model remains unsuitable for operational hazard decisions.
+See the [research model card](docs/ml.md), [deployment runbook](docs/deployment.md), [B2B API guide](docs/b2b-api.md) and [OpenAPI contract](docs/b2b-openapi.yaml). Local container smoke tests passed for all three services. The user selected a free Render demo. Its free PostgreSQL instance is available, and the combined app container passed a 512 MB local rehearsal. The [hosted demo](https://custerra-demo.onrender.com) passed verified database TLS, migrations V1–V7, readiness, sign-in/session/CSRF, notification inbox and API-key lifecycle checks on October 30, 2026. The database expires **November 24, 2026**. Idle startup can take several minutes; background monitoring and outbound dispatch are disabled. During hosted acceptance Open-Meteo returned HTTP 502, so weather context is currently unavailable. See the [deployment record](docs/deployment-proposal.md). The research model remains unsuitable for operational hazard decisions.
