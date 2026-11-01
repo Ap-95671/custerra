@@ -55,3 +55,41 @@ test('hazard failure retains the driving route with explicitly unknown exposure'
   await expect(page.getByText(/Hazard evidence unavailable/)).toBeVisible();
   await expect(page.getByText(/No currently retrieved monitored earthquakes/)).toHaveCount(0);
 });
+
+for (const width of [1280, 390]) test(`generated journey save, progress privacy and completion at ${width}px`, async ({ page }) => {
+  await setup(page); await page.setViewportSize({width,height:844});
+  const input={points:[{latitude:0,longitude:0},{latitude:0,longitude:1}],corridorKm:25,days:7,minMagnitude:4};
+  const id='33333333-3333-4333-8333-333333333333';
+  let saved=false;
+  let journey: Record<string,unknown>={id,name:'Delhi to Manali',route:input,status:'PLANNED',createdAt:time,lastAttemptAt:null,lastCheckedAt:null,lastError:null,assessment:null,progress:null,generatedGeometry:{encodedPolyline:planned.geometry,version:1,originName:'Delhi',destinationName:'Manali'}};
+  const positions: unknown[]=[];
+  await page.addInitScript(()=>{Object.defineProperty(navigator,'geolocation',{value:{getCurrentPosition:(_success:unknown,error:(value:unknown)=>void)=>error({code:1})}});});
+  await page.route('**/api/v1/journeys**',async r=>{
+    const path=new URL(r.request().url()).pathname,method=r.request().method();
+    if(path.endsWith('/monitoring'))return r.fulfill({json:{schedulerEnabled:false,intervalMs:300000}});
+    if(path.endsWith('/notices'))return r.fulfill({json:[]});
+    if(path.endsWith('/generated')){expect(r.request().postDataJSON()).toMatchObject({geometry:planned.geometry,originName:'Delhi',destinationName:'Manali'});saved=true;return r.fulfill({status:201,json:journey});}
+    if(path.endsWith('/progress')){
+      if(method==='PUT'){const p=r.request().postDataJSON();positions.push(p);journey={...journey,progress:{...p,segmentIndex:0,completedFraction:0,distanceFromRouteKm:0,state:'MATCHED'}};}
+      else journey={...journey,progress:null};
+      return r.fulfill({json:journey});
+    }
+    if(method==='PATCH'){journey={...journey,status:r.request().postDataJSON().status,progress:null};return r.fulfill({json:journey});}
+    return r.fulfill({json:saved?[journey]:[]});
+  });
+  await page.goto('/routes');await choose(page);await page.getByRole('button',{name:'Analyze route',exact:true}).click();
+  await page.getByRole('button',{name:'Save Journey',exact:true}).click();
+  const selected=page.getByRole('region',{name:'Selected journey'});
+  await expect(selected).toContainText('PLANNED');expect(positions).toHaveLength(0);
+  await selected.getByRole('button',{name:'Start Journey',exact:true}).click();
+  await selected.getByRole('button',{name:'Share current location once',exact:true}).click();
+  await expect(selected.getByRole('alert')).toContainText('Location permission was denied');expect(positions).toHaveLength(0);
+  await selected.getByText('Enter current position manually',{exact:true}).click();
+  await selected.getByLabel('Current latitude',{exact:true}).fill('0');await selected.getByLabel('Current longitude',{exact:true}).fill('0.5');await selected.getByLabel('Position accuracy · meters').fill('10');
+  await selected.getByRole('button',{name:'Share entered position once'}).click();
+  await expect(selected).toContainText('Remaining-route monitoring starts at segment 1');expect(positions).toHaveLength(1);
+  await selected.getByRole('button',{name:'Clear shared position'}).click();await expect(selected).toContainText('Full-route monitoring:');
+  await selected.getByRole('button',{name:'Complete Journey',exact:true}).click();await expect(selected).toContainText('COMPLETED');
+  await expect(selected.getByRole('button',{name:'Share current location once',exact:true})).toBeDisabled();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

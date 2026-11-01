@@ -1,4 +1,4 @@
-import { readCopies, removeCopy, STORAGE_KEY } from './offline-store.js';
+import { readCopies, removeCopy, STORAGE_KEY, MAX_BYTES } from './offline-store.js';
 const container = document.getElementById('copies');
 const message = document.getElementById('message');
 function add(parent, tag, value) { const node = document.createElement(tag); node.textContent = value; parent.append(node); return node; }
@@ -10,6 +10,8 @@ function render() {
   container.replaceChildren();
   try {
     const copies = readCopies(localStorage);
+    const bytes=(localStorage.getItem(STORAGE_KEY)?.length ?? 0)*2;
+    document.getElementById('connection').textContent=(navigator.onLine?'Online connection reported — this page still shows saved evidence only.':'Offline — live monitoring and new observations are unavailable.')+` Storage: ${(bytes/1024).toFixed(0)} / ${MAX_BYTES/1024} KiB.`;
     message.textContent = copies.length ? `${copies.length} saved copies. All evidence may be out of date.` : 'No valid offline copies. Expired or incompatible copies are removed. Save a journey while online before departure.';
     document.getElementById('clear').disabled = !copies.length;
     for (const copy of copies) {
@@ -21,8 +23,10 @@ function render() {
       for (const checkpoint of journey.providerCheckpoints || []) add(card, 'p', `${checkpoint.provider} last successful evidence check: ${checkpoint.lastSuccessfulCheck}`);
       if (journey.lastError) add(card, 'p', `Last saved check error: ${journey.lastError}. This copy does not resolve it.`);
       add(card, 'p', `Corridor ${journey.route.corridorKm} km · magnitude ≥ ${journey.route.minMagnitude} · lookback ${journey.route.days} days`);
-      add(card, 'h3', 'Saved waypoints'); const points = add(card, 'ol', '');
-      for (const point of journey.route.points) add(points, 'li', `${point.latitude}, ${point.longitude}`);
+      if(journey.generatedGeometry)add(card,'p',`${journey.generatedGeometry.originName} → ${journey.generatedGeometry.destinationName}`);
+      if(Date.now()-Date.parse(copy.savedAt)>86400000)add(card,'p','This copy is over 24 hours old. Refresh it online before relying on its timestamps.');
+      add(card, 'h3', `Saved geometry · ${journey.route.points.length} vertices (showing at most 100)`); const points = add(card, 'ol', '');
+      for (const point of journey.route.points.slice(0,100)) add(points, 'li', `${point.latitude}, ${point.longitude}`);
       add(card, 'h3', 'Saved route assessment · UNKNOWN');
       if (assessment) {
         add(card, 'p', `Assessed ${assessment.assessedAt} · ${assessment.lengthKm.toFixed(1)} km`);
@@ -43,6 +47,7 @@ function render() {
 }
 document.getElementById('clear').onclick = () => { try { localStorage.removeItem(STORAGE_KEY); render(); } catch { message.textContent = 'Could not clear offline copies. Check browser storage permissions.'; } };
 window.addEventListener('storage', render);
+window.addEventListener('online',render);window.addEventListener('offline',render);
 render();
 // Purge expired copies even if this reader remains open for a long time.
 setInterval(render, 60000);

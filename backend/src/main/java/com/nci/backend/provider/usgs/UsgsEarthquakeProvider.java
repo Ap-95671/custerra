@@ -8,7 +8,6 @@ import java.util.LinkedHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -40,10 +39,7 @@ public class UsgsEarthquakeProvider implements HazardProvider, com.nci.backend.h
     }
 
     private static RestClient createClient(UsgsProperties properties) {
-        var factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(properties.connectTimeoutMs());
-        factory.setReadTimeout(properties.readTimeoutMs());
-        return RestClient.builder().requestFactory(factory).build();
+        return com.nci.backend.provider.ProviderHttp.client(properties.connectTimeoutMs(), properties.readTimeoutMs());
     }
 
     @Override

@@ -25,3 +25,30 @@ test('limits do not evict other journeys or silently swallow quota failures', ()
   expect(() => saveCopy(full, copy(), now)).toThrow('Quota exceeded');
   expect(() => saveCopy(storage(), { ...copy(), journey: { ...copy().journey, name: 'x'.repeat(600000) } }, now)).toThrow('storage limit');
 });
+
+test('generated geometry is compact, lossless and never retains shared coordinates', () => {
+  const store=storage();
+  const value={...copy(),journey:{...copy().journey,progress:{position:{latitude:42,longitude:42}},generatedGeometry:{encodedPolyline:'???_c`|@',version:1,originName:'A',destinationName:'B'}}};
+  saveCopy(store,value,now);
+  expect(store.getItem(STORAGE_KEY)).toContain('polyline6');
+  expect(JSON.parse(store.getItem(STORAGE_KEY)!)[0].journey.progress).toBeNull();
+  expect(readCopies(store,now)[0].journey.route.points).toEqual(value.journey.route.points);
+  const broken=JSON.parse(store.getItem(STORAGE_KEY)!);broken[0].journey.route.encodedPoints='!';store.setItem(STORAGE_KEY,JSON.stringify(broken));
+  expect(readCopies(store,now)).toEqual([]);
+});
+
+test('a maximum-vertex generated route and remaining assessment round-trip within the offline budget', () => {
+  const store=storage();
+  const points=Array.from({length:20000},(_,i)=>({latitude:0,longitude:i/1000000}));
+  const route={...copy().journey.route,points};
+  const value={...copy(),journey:{...copy().journey,route,
+    generatedGeometry:{encodedPolyline:'??'+'?A'.repeat(19999),version:1,originName:'A',destinationName:'B'},
+    assessment:{overallRisk:'UNKNOWN',assessedAt:new Date(now).toISOString(),explanation:'Synthetic maximum-size fixture',truncated:false,lengthKm:2.23,matches:[],query:{...route,points:points.slice(19500)}}}};
+  saveCopy(store,value,now);
+  const packed=JSON.parse(store.getItem(STORAGE_KEY)!)[0];
+  expect(packed.journey.assessment.query.pointRange).toEqual({start:19500,count:500});
+  expect(store.getItem(STORAGE_KEY)!.length*2).toBeLessThan(200000);
+  const restored=readCopies(store,now)[0];
+  expect(restored.journey.route.points).toEqual(points);
+  expect(restored.journey.assessment.query.points).toEqual(points.slice(19500));
+});

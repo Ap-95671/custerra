@@ -13,3 +13,13 @@
 **/playwright-report
 **/*.log
 **/*.tsbuildinfo
+
+# Private backup material is never source or a build input.
+**/*.dump
+**/*.cms
+**/*.age
+**/*.pem
+**/.pgpass
+**/pgpass*
+**/backups/
+**/secrets/

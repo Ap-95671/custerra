@@ -1,0 +1,39 @@
+# PREPARATION ONLY. Do not apply without a separately authorized staging database.
+# Existing Render free-database capacity must not be assumed to permit a second DB.
+# No database is created or shared with production by this Blueprint.
+services:
+  - type: web
+    name: custerra-v2-staging
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: phase27/release-candidate
+    autoDeployTrigger: 'off'
+    dockerfilePath: ./infrastructure/Dockerfile.demo
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+      - key: SESSION_COOKIE_SECURE
+        value: 'true'
+      - key: OPS_TOKEN
+        generateValue: true
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: '5432'
+      - key: DB_NAME
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: MONITORING_ENABLED
+        value: 'false'
+      - key: NOTIFICATIONS_ENABLED
+        value: 'false'
+      - key: FIRMS_MAP_KEY
+        sync: false
+      - key: PORT
+        value: '10000'

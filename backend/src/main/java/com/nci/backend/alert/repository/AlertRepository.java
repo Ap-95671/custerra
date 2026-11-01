@@ -22,6 +22,9 @@ public class AlertRepository {
                 owner,p.enabled(),p.pushEnabled(),json.writeValueAsString(p.hazardTypes()),p.minimumSeverity().name(),p.includeUnknown());
     }
     public record JourneyOwner(UUID owner,String name) {}
+    public boolean active(UUID journey) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("select exists(select 1 from monitored_journey where id=? and status='ACTIVE' and owner_id is not null)",Boolean.class,journey));
+    }
     public Optional<JourneyOwner> owner(UUID journey) {
         return jdbc.query("select owner_id,name from monitored_journey where id=? and owner_id is not null",(rs,row)->new JourneyOwner(rs.getObject(1,UUID.class),rs.getString(2)),journey).stream().findFirst();
     }

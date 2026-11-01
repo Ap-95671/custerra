@@ -16,6 +16,7 @@ export default function DisasterList({ hazards, hasQuery, selected, onSelect, on
       <p>{hazards.data.coverage}</p>
       {hazards.data.providerStatuses?.map(status => <details key={status.provider} open={status.coverageStatus !== 'COMPLETE'}>
         <summary>{status.provider}: {status.coverageStatus}</summary>
+        <p>{status.availability ?? 'Availability unspecified'} · {status.freshness ?? 'Freshness unspecified'}</p>
         <p>{status.retrievedAt ? `Retrieved ${time(status.retrievedAt)}` : 'No successful retrieval for this query.'}</p>
         <ul>{status.limitations.map(note => <li key={note}>{note}</li>)}</ul>
       </details>)}

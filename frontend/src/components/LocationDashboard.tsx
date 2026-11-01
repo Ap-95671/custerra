@@ -1,4 +1,5 @@
 "use client";
+import Brand from './layout/Brand';
 import { hazardLayers, eventLayer } from '../lib/maps/hazardLayers';
 import FeatureNav from './layout/FeatureNav';
 import dynamic from 'next/dynamic';
@@ -33,7 +34,7 @@ export default function LocationDashboard() {
   }
   const items = hazards.data?.items ?? EMPTY;
   return <div className="app-shell">
-    <header className="masthead"><a href="/" className="brand"><span className="brand-mark">◎</span> Custerra<span className="brand-note">HAZARD INTELLIGENCE</span></a><span className="edition">FIELD VIEW <span>02 / MULTI-HAZARD</span></span></header>
+    <header className="masthead"><Brand/><span className="edition">FIELD VIEW <span>02 / MULTI-HAZARD</span></span></header>
     <FeatureNav/>
     <main>
       <div className="intro"><div><p className="eyebrow">UNDERSTAND THE GROUND AHEAD</p><h1>A clearer view of your surroundings.</h1><p>Explore earthquake observations, satellite thermal anomalies and global disaster advisories.</p></div><div className="coverage"><span className="dot" /> USGS · NASA FIRMS · GDACS<br/><small>Source coverage and freshness vary</small></div></div>

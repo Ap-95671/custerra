@@ -42,6 +42,56 @@ class JourneyPersistenceTests {
         properties.add("spring.datasource.username",()->System.getenv("TEST_DB_USERNAME"));
         properties.add("spring.datasource.password",()->System.getenv("TEST_DB_PASSWORD"));
     }
+    private String generatedGeometry() {
+        // 201 exact polyline6 vertices along the equator, 0.01 degrees apart.
+        var text=new StringBuilder("??");
+        for(int i=0;i<200;i++){text.append('?');long value=20000;while(value>=32){text.append((char)((32|(value&31))+63));value>>=5;}text.append((char)(value+63));}
+        return text.toString();
+    }
+    @Test void generatedGeometryRoundTripsWithoutTruncationAndTerminalStatesStayTerminal() {
+        String encoded=generatedGeometry();
+        var saved=service.createGenerated(new GeneratedJourneyRequest("Generated","Origin","Destination",encoded,25.,7,4.));
+        assertThat(saved.status()).isEqualTo("PLANNED");assertThat(saved.route().points()).hasSize(201);
+        assertThat(saved.generatedGeometry().encodedPolyline()).isEqualTo(encoded);
+        assertThat(jdbc.queryForObject("select route from monitored_journey where id=?",String.class,saved.id())).contains("\"points\":[]");
+        service.status(saved.id(),"ACTIVE");
+        var update=new JourneyProgress.Update(new com.nci.backend.route.dto.RoutePoint(0.,1.5),Instant.now(),10.);
+        var moving=service.progress(saved.id(),update);
+        assertThat(moving.progress().state()).isEqualTo("MATCHED");assertThat(moving.progress().segmentIndex()).isBetween(148,150);
+        assertThatThrownBy(()->service.progress(saved.id(),update)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        service.status(saved.id(),"PAUSED");assertThat(service.get(saved.id()).progress()).isNull();
+        service.status(saved.id(),"COMPLETED");assertThatThrownBy(()->service.status(saved.id(),"ACTIVE")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+    }
+    @Test void generatedMonitoringUsesRemainingGeometryAndFallsBackWhenProgressIsStale() {
+        var saved=service.createGenerated(new GeneratedJourneyRequest("Generated","Origin","Destination",generatedGeometry(),25.,7,4.));
+        service.status(saved.id(),"ACTIVE");
+        when(risk.assessMonitoredGenerated(any())).thenAnswer(call->{var r=call.getArgument(0,com.nci.backend.route.dto.RouteRiskRequest.class);
+            return new RouteRiskResponse("fixture",r,Instant.now(),50,"UNKNOWN",false,List.of(),List.of(),"fixture");});
+        service.progress(saved.id(),new JourneyProgress.Update(new com.nci.backend.route.dto.RoutePoint(0.,1.5),Instant.now(),10.));
+        service.check(saved.id());
+        var capture=org.mockito.ArgumentCaptor.forClass(com.nci.backend.route.dto.RouteRiskRequest.class);
+        verify(risk).assessMonitoredGenerated(capture.capture());assertThat(capture.getValue().points().size()).isBetween(50,53);
+        service.clearProgress(saved.id());
+        service.progress(saved.id(),new JourneyProgress.Update(new com.nci.backend.route.dto.RoutePoint(0.,1.5),Instant.now().minusSeconds(400),10.));
+        service.check(saved.id());
+        verify(risk,times(2)).assessMonitoredGenerated(capture.capture());assertThat(capture.getValue().points()).hasSize(201);
+        assertThat(service.get(saved.id()).progress().state()).isEqualTo("STALE");
+    }
+    @Test void narrowingThenFullRouteFallbackDoesNotCreateDisappearanceOrDuplicateNotices() {
+        var saved=service.createGenerated(new GeneratedJourneyRequest("Scope","Origin","Destination",generatedGeometry(),25.,7,4.));
+        service.status(saved.id(),"ACTIVE");
+        when(risk.assessMonitoredGenerated(any())).thenReturn(assessment(false,"old"),assessment(false),assessment(false,"old"));
+        service.check(saved.id());
+        service.progress(saved.id(),new JourneyProgress.Update(new com.nci.backend.route.dto.RoutePoint(0.,1.5),Instant.now(),10.));
+        service.check(saved.id());assertThat(service.notices(saved.id(),0)).isEmpty();
+        service.clearProgress(saved.id());service.check(saved.id());assertThat(service.notices(saved.id(),0)).isEmpty();
+    }
+    @Test void progressRetentionErasesOnlyExpiredPositions() {
+        var saved=service.create(new MonitoringRequest("Privacy",ROUTE));service.status(saved.id(),"ACTIVE");
+        service.progress(saved.id(),new JourneyProgress.Update(new com.nci.backend.route.dto.RoutePoint(0.,1.),Instant.now(),10.));
+        repository.expireProgress(Instant.now().minusSeconds(86400));assertThat(service.get(saved.id()).progress()).isNotNull();
+        repository.expireProgress(Instant.now().plusSeconds(1));assertThat(service.get(saved.id()).progress()).isNull();
+    }
     private UUID active() {
         var saved = service.create(new MonitoringRequest("Test journey",ROUTE));
         assertThat(saved.status()).isEqualTo("PAUSED");
@@ -142,10 +192,19 @@ class JourneyPersistenceTests {
                 multi(CoverageStatus.COMPLETE,CoverageStatus.PARTIAL,advisory("flood",SeverityLevel.LOW,NOW)),
                 multi(CoverageStatus.COMPLETE,CoverageStatus.PARTIAL,advisory("flood",SeverityLevel.HIGH,NOW.plusSeconds(3))));
         for(int i=0;i<5;i++) service.check(id);
+        assertThat(service.revisions(id,0)).hasSize(2);
+        assertThat(service.revisions(id,0)).extracting(r->r.evidence().event().severity()).containsExactlyInAnyOrder(SeverityLevel.LOW,SeverityLevel.HIGH);
         assertThat(service.notices(id,0)).singleElement().satisfies(n -> {
             assertThat(n.type()).isEqualTo("UPDATED_MATCHING_EVIDENCE");
             assertThat(n.evidence().event().severity()).isEqualTo(SeverityLevel.HIGH);
         });
+    }
+    @Test void staleSourceCannotAdvanceBaselineOrCreateNotifications() {
+        var id=active();var event=advisory("stale",SeverityLevel.HIGH,NOW);
+        var stale=new RouteRiskResponse("fixture",ROUTE,NOW,222,"UNKNOWN",false,List.of(new RouteRiskResponse.Match(event,0,0)),List.of(),"Stale feed",CoverageStatus.PARTIAL,
+            List.of(new ProviderStatus("GDACS",CoverageStatus.PARTIAL,NOW,List.of("STALE_FEED: old publication"))));
+        when(risk.assessMonitored(ROUTE)).thenReturn(stale);service.check(id);
+        assertThat(service.notices(id,0)).isEmpty();assertThat(service.get(id).providerCheckpoints()).isEmpty();assertThat(service.revisions(id,0)).isEmpty();
     }
     @Test void partialAbsenceDoesNotResolveEvidenceAndCompleteAbsenceIsDeduplicated() {
         var id=active(); var flood=advisory("flood",SeverityLevel.LOW,NOW);

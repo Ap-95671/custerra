@@ -16,3 +16,13 @@ __pycache__/
 frontend/*.tsbuildinfo
 frontend/test-results/
 frontend/playwright-report/
+
+# Private backup material is never source or a build input.
+**/*.dump
+**/*.cms
+**/*.age
+**/*.pem
+**/.pgpass
+**/pgpass*
+**/backups/
+**/secrets/

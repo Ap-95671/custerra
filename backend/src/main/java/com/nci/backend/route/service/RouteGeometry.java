@@ -13,7 +13,7 @@ public class RouteGeometry {
     private final GeoDistance geo;
     public RouteGeometry(GeoDistance geo) { this.geo = geo; }
     public double validateAndLength(RouteRiskRequest route) { return validateAndLength(route,20); }
-    double validateAndLength(RouteRiskRequest route,int maxPoints) {
+    public double validateAndLength(RouteRiskRequest route,int maxPoints) {
         if (route == null || route.points() == null || route.points().size() < 2 || route.points().size() > maxPoints
                 || !Double.isFinite(route.corridorKm()) || route.corridorKm() < 1 || route.corridorKm() > 100
                 || route.days() < 1 || route.days() > 30 || !Double.isFinite(route.minMagnitude())

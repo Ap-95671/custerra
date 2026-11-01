@@ -21,7 +21,8 @@ public class NotificationDispatcher {
             if(next==null || next.isEmpty()) return;
             var job=next.get();var preference=alerts.preferences(job.subscription().owner());var event=job.notification().notice().evidence().event();
             PushGateway.Result result;
-            if(!preference.pushEnabled() || !preference.accepts(event.hazardType(),event.severity())) result=new PushGateway.Result("CANCELLED","PREFERENCE_DISABLED");
+            if(!alerts.active(job.notification().notice().journeyId())) result=new PushGateway.Result("CANCELLED","JOURNEY_NOT_ACTIVE");
+            else if(!preference.pushEnabled() || !preference.accepts(event.hazardType(),event.severity())) result=new PushGateway.Result("CANCELLED","PREFERENCE_DISABLED");
             else if(job.notification().notice().createdAt().isBefore(clock.instant().minus(Duration.ofHours(24)))) result=new PushGateway.Result("CANCELLED","NOTICE_TOO_OLD");
             else {
                 String text=event.hazardType()+" · "+event.informationType()+" · "+event.source()+" · "+job.notification().notice().type()+" · "+job.notification().notice().createdAt()+". Review current evidence; this is informational, not an official warning.";

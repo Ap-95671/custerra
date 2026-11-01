@@ -18,10 +18,12 @@ public class JourneyEvidenceTracker {
     private final ObjectMapper json;
     private final JourneyNoticeService notices;
     public JourneyEvidenceTracker(MonitoredTripRepository repository, ObjectMapper json, JourneyNoticeService notices) { this.repository=repository; this.json=json; this.notices=notices; }
-    public void apply(MonitoringResponse journey, RouteRiskResponse assessment, Instant now) {
+    public void apply(MonitoringResponse journey, RouteRiskResponse assessment, Instant now) { apply(journey,assessment,now,false); }
+    public void apply(MonitoringResponse journey, RouteRiskResponse assessment, Instant now, boolean remainingRoute) {
         var statuses = assessment.providerStatuses().isEmpty()
                 ? List.of(new ProviderStatus("USGS",assessment.coverageStatus(),assessment.assessedAt(),List.of())) : assessment.providerStatuses();
         for (var status : statuses) {
+            if (status.freshness().equals("STALE")) continue;
             if (status.coverageStatus() != CoverageStatus.COMPLETE && status.coverageStatus() != CoverageStatus.PARTIAL) continue;
             boolean baseline = journey.providerCheckpoints().stream().anyMatch(c -> c.provider().equals(status.provider()));
             var previous = repository.states(journey.id(),status.provider());
@@ -37,7 +39,9 @@ public class JourneyEvidenceTracker {
                 String fingerprint = fingerprint(match);
                 boolean changed = old == null || !old.present() || (old.fingerprint() != null && !old.fingerprint().equals(fingerprint));
                 long version = old == null ? 1 : old.version() + (changed ? 1 : 0);
-                repository.remember(journey.id(),match,fingerprint,version,true);
+                boolean newerRevision=old!=null && old.evidence()!=null && event.sourceUpdatedAt()!=null
+                    && (old.evidence().event().sourceUpdatedAt()==null || event.sourceUpdatedAt().isAfter(old.evidence().event().sourceUpdatedAt()));
+                if(changed || old.fingerprint()==null || newerRevision)repository.remember(journey.id(),match,fingerprint,version,true);
                 if (baseline && changed) {
                     String type = old == null ? "NEW_MATCHING_OBSERVATION" : old.present() ? "UPDATED_MATCHING_EVIDENCE" : "MATCHING_EVIDENCE_RETURNED";
                     notice(journey.id(),now,type,match,version,
@@ -47,7 +51,7 @@ public class JourneyEvidenceTracker {
                 }
             }
             // Partial feeds can establish presence, never disappearance or hazard resolution.
-            if (status.coverageStatus() == CoverageStatus.COMPLETE) for (var old : previous.values()) {
+            if (!remainingRoute && status.coverageStatus() == CoverageStatus.COMPLETE) for (var old : previous.values()) {
                 if (!old.present() || old.evidence() == null || current.contains(old.externalId())) continue;
                 repository.remember(journey.id(),old.evidence(),old.fingerprint(),old.version()+1,false);
                 if (baseline) notice(journey.id(),now,"NO_LONGER_MATCHING",old.evidence(),old.version()+1,

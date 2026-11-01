@@ -7,7 +7,6 @@ import java.time.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.ResourceAccessException;
@@ -29,9 +28,7 @@ public class OpenMeteoProvider implements WeatherProvider {
         this.properties = properties; this.mapper = mapper; this.json = json; this.clock = clock; this.client = client;
     }
     private static RestClient client(OpenMeteoProperties properties) {
-        var factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(properties.connectTimeoutMs()); factory.setReadTimeout(properties.readTimeoutMs());
-        return RestClient.builder().requestFactory(factory).build();
+        return com.nci.backend.provider.ProviderHttp.client(properties.connectTimeoutMs(), properties.readTimeoutMs());
     }
     @Override
     public WeatherResponse fetch(WeatherQuery query) {

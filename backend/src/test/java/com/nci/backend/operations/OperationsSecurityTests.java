@@ -28,4 +28,13 @@ class OperationsSecurityTests {
    .andExpect(status().isOk()).andExpect(jsonPath("$[?(@.provider == 'FIRMS')].state").value("UNAVAILABLE"));
   mvc.perform(get("/actuator/prometheus").header("Authorization","Bearer fixture-operations-token-at-least-32-characters")).andExpect(status().isOk());
  }
+ @Test void durableWorkStatusIsPrivateAndDisabledWorkersAreExplicit() throws Exception {
+  mvc.perform(get("/api/internal/operations/workers")).andExpect(status().isUnauthorized());
+  mvc.perform(get("/api/internal/operations/workers").header("Authorization","Bearer fixture-operations-token-at-least-32-characters")).andExpect(status().isOk());
+  mvc.perform(get("/api/internal/operations/workload")).andExpect(status().isUnauthorized());
+  mvc.perform(get("/api/internal/operations/workload").header("Authorization","Bearer fixture-operations-token-at-least-32-characters"))
+   .andExpect(status().isOk()).andExpect(jsonPath("$.monitoringEnabled").value(false))
+   .andExpect(jsonPath("$.notificationsEnabled").value(false))
+   .andExpect(jsonPath("$.journeys.due").isNumber()).andExpect(jsonPath("$.notifications.expired_leases").isNumber());
+ }
 }

@@ -7,7 +7,7 @@ const level = z.enum(['UNKNOWN', 'LOW', 'MODERATE', 'HIGH']);
 export const nearbySchema = z.object({
   fetchedAt: timestamp, truncated: z.boolean(), coverage: z.string(), sources: z.array(source),
   coverageStatus: z.enum(['COMPLETE', 'PARTIAL', 'TRUNCATED', 'UNAVAILABLE', 'UNKNOWN']).optional(),
-  providerStatuses: z.array(z.object({ provider: z.string(), coverageStatus: z.enum(['COMPLETE', 'PARTIAL', 'TRUNCATED', 'UNAVAILABLE', 'UNKNOWN']),
+  providerStatuses: z.array(z.object({ provider: z.string(), availability: z.string().optional(), freshness: z.string().optional(), coverageStatus: z.enum(['COMPLETE', 'PARTIAL', 'TRUNCATED', 'UNAVAILABLE', 'UNKNOWN']),
     retrievedAt: timestamp.nullable(), limitations: z.array(z.string()) })).optional(),
   items: z.array(z.object({ distanceKm: z.number().nonnegative(), event: z.object({
     externalId: z.string(), source: z.string(), title: z.string(), hazardType: z.string(), informationType: z.string(),

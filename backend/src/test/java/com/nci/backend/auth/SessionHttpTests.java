@@ -44,8 +44,10 @@ class SessionHttpTests {
                 String token=json.readTree(csrf.body()).get("token").asText();
                 var registration=send(client,"auth/register","POST",json.writeValueAsString(Map.of("username",name,"password","HTTP-fixture-password")),token,"application/json");
                 assertThat(registration.statusCode()).isEqualTo(201);
+                String beforeLogin=cookies.getCookieStore().getCookies().stream().filter(cookie->cookie.getName().equals("JSESSIONID")).findFirst().orElseThrow().getValue();
                 var login=send(client,"auth/login","POST","username="+name+"&password=HTTP-fixture-password",token,"application/x-www-form-urlencoded");
                 assertThat(login.statusCode()).isEqualTo(204);
+                assertThat(cookies.getCookieStore().getCookies().stream().filter(cookie->cookie.getName().equals("JSESSIONID")).findFirst().orElseThrow().getValue()).isNotEqualTo(beforeLogin);
                 assertThat(send(client,"auth/me","GET",null,null,null).statusCode()).isEqualTo(200);
                 assertThat(send(client,"auth/logout","POST",null,token,null).statusCode()).isEqualTo(403);
                 String fresh=json.readTree(send(client,"auth/csrf","GET",null,null,null).body()).get("token").asText();

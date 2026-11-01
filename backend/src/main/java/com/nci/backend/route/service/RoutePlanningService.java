@@ -58,6 +58,6 @@ public class RoutePlanningService {
                 points.size()-1,route.source(),route.retrievedAt(),exposure,error,List.of("Driving only; routes over 900 km are not supported yet.",
                 "Duration excludes live traffic and hazard impacts. Endpoints may snap up to 5 km to the road network.",
                 "Earthquake exposure only in this milestone. Other hazard families remain unassessed.",
-                "Preview only: saving a generated driving route as a monitored journey is not connected yet."));
+                "Saving this geometry creates a planned journey. Monitoring requires explicit activation and an enabled worker."));
     }
 }

@@ -1,0 +1,154 @@
+name: Verify Custerra
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: custerra
+          POSTGRES_PASSWORD: local-ci-fixture-only
+          POSTGRES_DB: custerra_ci_test
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      CUSTERRA_DATABASE_TESTS: 'true'
+      CUSTERRA_LOAD_TESTS: 'true'
+      TEST_DB_URL: jdbc:postgresql://127.0.0.1:5432/custerra_ci_test
+      TEST_DB_UPGRADE_URL: jdbc:postgresql://127.0.0.1:5432/custerra_upgrade_ci
+      TEST_DB_USERNAME: custerra
+      TEST_DB_PASSWORD: local-ci-fixture-only
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: custerra
+      PGPASSWORD: local-ci-fixture-only
+      PGDATABASE: custerra_ci_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Matching PostgreSQL backup client
+        run: |
+          if [ ! -x /usr/lib/postgresql/17/bin/pg_dump ]; then
+            sudo install -d /usr/share/postgresql-common/pgdg
+            curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo tee /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc > /dev/null
+            echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/pgdg.list
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client-17
+          fi
+          echo '/usr/lib/postgresql/17/bin' >> "$GITHUB_PATH"
+      - run: createdb custerra_upgrade_ci
+      - name: Authenticated backup envelope tests (synthetic only)
+        run: python3 -m unittest discover -s scripts/tests -v
+      - run: mvn --batch-mode -f backend/pom.xml verify
+      - name: Synthetic backup / corruption / non-destructive restore checks
+        run: python3 scripts/verify-database-recovery.py
+      - name: Encrypted synthetic export / decrypt / isolated restore
+        run: python3 scripts/verify-encrypted-database-recovery.py --report backend/target/encrypted-recovery.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-verification
+          path: |
+            backend/target/surefire-reports
+            backend/target/*load-results.json
+            backend/target/encrypted-recovery.json
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failures
+          path: frontend/test-results
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ml-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: ml-service/requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - run: python -m pytest -q
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        component: [backend, frontend, ml, demo]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f infrastructure/Dockerfile.${{ matrix.component }} -t custerra-${{ matrix.component }}:ci .
+      - name: Record image identity and container advisory report
+        run: |
+          mkdir -p security
+          docker image inspect custerra-${{ matrix.component }}:ci --format '{{json .Id}}' > security/image-id.json
+          docker save custerra-${{ matrix.component }}:ci -o image.tar
+          docker run --rm -v "$PWD/image.tar:/image.tar:ro" -v "$PWD/security:/results" ghcr.io/aquasecurity/trivy:0.76.1 image --input /image.tar --scanners vuln --format json --output /results/container-advisories.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: container-${{ matrix.component }}-verification
+          path: security
+  source-secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Secret scan of source snapshot (redacted)
+        run: |
+          mkdir -p /tmp/custerra-secret-report
+          docker run --rm --network none -v "$PWD:/source:ro" -v /tmp/custerra-secret-report:/report ghcr.io/gitleaks/gitleaks:v8.30.1 dir /source --redact --report-format json --report-path /report/gitleaks.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: source-secret-scan
+          path: /tmp/custerra-secret-report
+  dependency-report:
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.7.0
+    with:
+      # Private-repository Code Scanning may be unavailable; keep report artifacts
+      # and strict vulnerability failure behavior without requiring that product.
+      upload-sarif: false

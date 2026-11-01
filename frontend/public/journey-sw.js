@@ -1,5 +1,5 @@
-const CACHE = 'custerra-offline-shell-v3';
-const ASSETS = ['/offline.html', '/offline-viewer.js', '/offline-store.js', '/offline.css'];
+const CACHE = 'custerra-offline-shell-v4';
+const ASSETS = ['/offline.html', '/offline-viewer.js', '/offline-store.js', '/offline-geometry.js', '/offline.css'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
 });

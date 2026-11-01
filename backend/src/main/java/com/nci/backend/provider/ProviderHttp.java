@@ -10,10 +10,16 @@ import org.springframework.web.client.ResourceAccessException;
 public final class ProviderHttp {
     private ProviderHttp() {}
     public static RestClient client(int connectMs, int readMs) {
-        var factory = new SimpleClientHttpRequestFactory();
+        var factory = new NoRedirectRequestFactory();
         factory.setConnectTimeout(connectMs);
         factory.setReadTimeout(readMs);
         return RestClient.builder().requestFactory(factory).build();
+    }
+    static class NoRedirectRequestFactory extends SimpleClientHttpRequestFactory {
+        @Override protected void prepareConnection(java.net.HttpURLConnection connection, String method) throws java.io.IOException {
+            super.prepareConnection(connection, method);
+            connection.setInstanceFollowRedirects(false);
+        }
     }
     public static byte[] get(RestClient client, URI uri, String accept, int maxBytes) {
         try {

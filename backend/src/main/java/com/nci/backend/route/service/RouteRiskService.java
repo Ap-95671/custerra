@@ -18,6 +18,9 @@ public class RouteRiskService {
     public RouteRiskResponse assessMonitored(RouteRiskRequest request) {
         return assess(request, geometry.validateAndLength(request), true);
     }
+    public RouteRiskResponse assessMonitoredGenerated(RouteRiskRequest request) {
+        return assess(request,geometry.validateAndLength(request,20_000),true);
+    }
     private RouteRiskResponse assess(RouteRiskRequest request, double length, boolean multiHazard) {
         var origin = request.points().getFirst();
         // Total path length plus corridor encloses every segment and its corridor by triangle inequality.
@@ -25,15 +28,13 @@ public class RouteRiskService {
         var result = multiHazard ? nearby.nearby(origin.latitude(), origin.longitude(), radius, request.days())
                 : nearby.earthquakes(origin.latitude(), origin.longitude(), radius, request.days());
         var matches = new ArrayList<RouteRiskResponse.Match>();
+        var index=new RouteSegmentIndex(request.points(),geometry);
         for (var item : result.items()) {
             var event = item.event();
             if ((!multiHazard || (event.source().equals("USGS") && event.hazardType() == HazardType.EARTHQUAKE))
                     && event.measurements().getOrDefault("magnitude", Double.NEGATIVE_INFINITY) < request.minMagnitude()) continue;
-            double closest = Double.POSITIVE_INFINITY; int segment = 0;
-            for (int i = 1; i < request.points().size(); i++) {
-                double km = geometry.segmentDistance(request.points().get(i-1), request.points().get(i), event.latitude(), event.longitude());
-                if (km < closest) { closest = km; segment = i-1; }
-            }
+            var nearest=index.closest(event.latitude(),event.longitude());
+            double closest=nearest.distanceKm();int segment=nearest.segmentIndex();
             if (closest <= request.corridorKm()) matches.add(new RouteRiskResponse.Match(event, closest, segment));
         }
         matches.sort(Comparator.comparingDouble(RouteRiskResponse.Match::distanceKm)

@@ -7,15 +7,15 @@ async function prepareReader() {
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([navigator.serviceWorker.ready, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Offline reader is not ready. Stay online and try saving again.')), 15000); })]);
-    const cache = await caches.open('custerra-offline-shell-v3');
+    const cache = await caches.open('custerra-offline-shell-v4');
     // Repair evicted assets even when an existing worker is already active.
-    await cache.addAll(['/offline.html', '/offline-viewer.js', '/offline-store.js', '/offline.css']);
+    await cache.addAll(['/offline.html', '/offline-viewer.js', '/offline-store.js', '/offline-geometry.js', '/offline.css']);
   } finally { clearTimeout(timeout); }
 }
 export async function saveJourneyOffline(journey: Journey, notices: Notice[]) {
   const validJourney = journeySchema.parse(journey); const validNotices = noticesSchema.parse(notices);
   await prepareReader();
-  try { saveCopy(localStorage, { version: 1, server: offlineServer, savedAt: new Date().toISOString(), journey: validJourney, notices: validNotices }); }
+  try { saveCopy(localStorage, { version: 1, server: offlineServer, savedAt: new Date().toISOString(), journey: { ...validJourney, progress: null }, notices: validNotices }); }
   catch (error) {
     if (error instanceof DOMException) throw new Error('Browser storage is unavailable or full. The offline copy was not saved.');
     throw error;
