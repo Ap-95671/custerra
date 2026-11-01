@@ -120,9 +120,9 @@ jobs:
           docker image inspect custerra-${{ matrix.component }}:ci --format '{{json .Id}}' > security/image-id.json
           docker save custerra-${{ matrix.component }}:ci -o image.tar
           docker run --rm -v "$PWD/image.tar:/image.tar:ro" -v "$PWD/security:/results" ghcr.io/aquasecurity/trivy:0.76.1 image --input /image.tar --scanners vuln --format json --output /results/container-advisories.json
-      - name: Rehearse combined demo at the selected free-tier resource limits
+      - name: Rehearse combined demo at observed Render resource limits
         if: matrix.component == 'demo'
-        run: python3 scripts/verify-demo-runtime.py --image custerra-demo:ci --report security/demo-runtime.json
+        run: python3 scripts/verify-demo-runtime.py --image custerra-demo:ci --cpus 0.15 --report security/demo-runtime.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

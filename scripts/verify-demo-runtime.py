@@ -25,7 +25,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--image', required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--cpus', type=float, default=0.15)
     args = parser.parse_args()
+    if not 0.1 <= args.cpus <= 1:
+        raise ValueError('Keep the controlled rehearsal within its declared CPU budget.')
     prefix = 'custerra-phase27-ci-' + secrets.token_hex(5)
     internal, edge, volume, database, demo = [prefix + suffix for suffix in ('-internal', '-edge', '-data', '-db', '-app')]
     password = secrets.token_urlsafe(24)
@@ -35,11 +38,24 @@ def main():
     created_volume = False
     args.report.parent.mkdir(parents=True, exist_ok=True)
 
+    def ready():
+        # The sleeping demo has slow cold starts; this is a bounded readiness
+        # deadline, not an achieved latency or availability objective.
+        for _ in range(300):
+            try:
+                with urllib.request.urlopen(base + '/health', timeout=2) as response:
+                    if json.load(response)['status'] == 'UP':
+                        return
+            except (OSError, ValueError, KeyError):
+                pass
+            time.sleep(1)
+        raise RuntimeError('Combined-demo readiness deadline exceeded.')
+
     def sql(query):
         return fixture.docker('exec', database, 'psql', '-U', 'custerra', '-d', 'custerra_ci_test', '-tA', '-c', query)
 
     def start_demo():
-        fixture.docker('run', '-d', '--name', demo, '--network', edge, '--memory', '512m', '--cpus', '0.5',
+        fixture.docker('run', '-d', '--name', demo, '--network', edge, '--memory', '512m', '--cpus', str(args.cpus),
             '-p', f'127.0.0.1:{port}:10000', '-e', 'DB_URL=jdbc:postgresql://db:5432/custerra_ci_test',
             '-e', 'DB_USERNAME=custerra', '-e', 'DB_PASSWORD=' + password, '-e', 'OPS_TOKEN=' + secrets.token_urlsafe(32),
             '-e', 'CORS_ALLOWED_ORIGINS=' + base, '-e', 'MONITORING_ENABLED=false', '-e', 'NOTIFICATIONS_ENABLED=false',
@@ -67,7 +83,7 @@ def main():
         else:
             raise RuntimeError('Synthetic database startup timed out.')
         containers.append(demo); start_demo()
-        fixture.ready(base + '/health')
+        ready()
         smoke = subprocess.run([sys.executable, str(Path(__file__).with_name('verify-local-deployment.py'))],
             env=os.environ | {'CUSTERRA_SMOKE_BASE_URL': base, 'CUSTERRA_SMOKE_READINESS_URL': base + '/health'},
             capture_output=True, text=True, timeout=150)
@@ -82,18 +98,18 @@ def main():
         except urllib.error.HTTPError as error:
             assert error.code == 503 and json.load(error) == {'status': 'DOWN'}
         fixture.docker('start', database)
-        fixture.ready(base + '/health')
+        ready()
         database_recovery = time.monotonic() - outage_start
         replacement_start = time.monotonic()
         fixture.docker('stop', '--time', '35', demo)
         fixture.docker('rm', demo)
         start_demo()
-        fixture.ready(base + '/health')
+        ready()
         replacement_seconds = time.monotonic() - replacement_start
         assert inventory() == before
         assert sql('select count(*) from flyway_schema_history where success') == '11'
         report = {'scope': 'HOSTED_CI_DISPOSABLE_COMBINED_DEMO_SYNTHETIC_ONLY', 'memoryLimitMiB': 512,
-            'cpuLimit': 0.5, 'migrations': 11, 'httpSessionCsrfProxyAndB2b': 'PASS',
+            'cpuLimit': args.cpus, 'migrations': 11, 'httpSessionCsrfProxyAndB2b': 'PASS',
             'databaseOutageReadiness503': True, 'databaseStopToRecoverySeconds': round(database_recovery, 3),
             'combinedReplacementRecoverySeconds': round(replacement_seconds, 3), 'allTableDigestsUnchanged': True,
             'observedRowLoss': 0, 'outOfMemoryKilled': fixture.docker('inspect', '--format', '{{.State.OOMKilled}}', demo),
