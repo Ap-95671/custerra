@@ -26,7 +26,7 @@ test('explicit offline save survives disconnected navigation and reload without 
   await offline.reload(); await expect(offline.getByRole('heading', { name: 'Offline test journey' })).toBeVisible();
   await offline.setViewportSize({ width: 390, height: 844 });
   expect(await offline.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await offline.screenshot({ path: '/private/tmp/custerra-m11/offline-mobile.png', fullPage: true });
+  await offline.screenshot({ path: test.info().outputPath('offline-mobile.png'), fullPage: true });
   const cached = await offline.evaluate(async () => { const cache = await caches.open('custerra-offline-shell-v4'); return (await cache.keys()).map(r => new URL(r.url).pathname).sort(); });
   expect(cached).toEqual(['/offline-geometry.js', '/offline-store.js', '/offline-viewer.js', '/offline.css', '/offline.html']);
   await offline.getByRole('button', { name: 'Remove this offline copy' }).click();

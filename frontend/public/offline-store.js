@@ -1,6 +1,6 @@
 // Shared by the React save action and the standalone offline viewer.
 import { packCopy, unpackCopy } from './offline-geometry.js';
-export const STORAGE_KEY = 'custerra.journey-copies.v1';
+export const STORAGE_KEY = 'custerra.journey-copies.v1'; // gitleaks:allow -- public localStorage namespace, not a credential
 export const MAX_AGE_MS = 7 * 86400000;
 export const MAX_BYTES = 1024 * 1024;
 const text = value => typeof value === 'string';

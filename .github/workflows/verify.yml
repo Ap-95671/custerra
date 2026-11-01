@@ -40,24 +40,23 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Matching PostgreSQL backup client
+      - name: Prepare isolated PostgreSQL fixture tools
+        env:
+          PG_FIXTURE_CONTAINER: ${{ job.services.postgres.id }}
         run: |
-          if [ ! -x /usr/lib/postgresql/17/bin/pg_dump ]; then
-            sudo install -d /usr/share/postgresql-common/pgdg
-            curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo tee /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc > /dev/null
-            echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/pgdg.list
-            sudo apt-get update
-            sudo apt-get install -y postgresql-client-17
-          fi
-          echo '/usr/lib/postgresql/17/bin' >> "$GITHUB_PATH"
-      - run: createdb custerra_upgrade_ci
+          docker exec "$PG_FIXTURE_CONTAINER" sh -c 'apt-get update -qq && apt-get install -y --no-install-recommends python3 openssl > /dev/null'
+          docker cp scripts "$PG_FIXTURE_CONTAINER:/tmp/custerra-scripts"
+          docker exec "$PG_FIXTURE_CONTAINER" createdb -U custerra custerra_upgrade_ci
       - name: Authenticated backup envelope tests (synthetic only)
         run: python3 -m unittest discover -s scripts/tests -v
       - run: mvn --batch-mode -f backend/pom.xml verify
-      - name: Synthetic backup / corruption / non-destructive restore checks
-        run: python3 scripts/verify-database-recovery.py
-      - name: Encrypted synthetic export / decrypt / isolated restore
-        run: python3 scripts/verify-encrypted-database-recovery.py --report backend/target/encrypted-recovery.json
+      - name: Synthetic and encrypted recovery on actual container loopback
+        env:
+          PG_FIXTURE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker exec -e PGHOST=127.0.0.1 -e PGPORT=5432 -e PGUSER=custerra -e PGDATABASE=custerra_ci_test -e PGPASSWORD=local-ci-fixture-only -e PGSSLMODE=disable "$PG_FIXTURE_CONTAINER" python3 /tmp/custerra-scripts/verify-database-recovery.py
+          docker exec -e PGHOST=127.0.0.1 -e PGPORT=5432 -e PGUSER=custerra -e PGDATABASE=custerra_ci_test -e PGPASSWORD=local-ci-fixture-only -e PGSSLMODE=disable "$PG_FIXTURE_CONTAINER" python3 /tmp/custerra-scripts/verify-encrypted-database-recovery.py --report /tmp/encrypted-recovery.json
+          docker cp "$PG_FIXTURE_CONTAINER:/tmp/encrypted-recovery.json" backend/target/encrypted-recovery.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
