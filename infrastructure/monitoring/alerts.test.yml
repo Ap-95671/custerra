@@ -1,0 +1,81 @@
+rule_files: [alerts.yml]
+evaluation_interval: 1m
+tests:
+  - name: sustained scrape failure fires after delay
+    interval: 1m
+    input_series:
+      - series: 'up{job="custerra-backend",instance="backend:8080"}'
+        values: '0 0 0 0'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: CusterraBackendMetricsUnavailable
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: CusterraBackendMetricsUnavailable
+        exp_alerts:
+          - exp_labels: {job: custerra-backend, instance: 'backend:8080', severity: critical}
+            exp_annotations: {summary: Custerra private metrics unavailable}
+  - name: healthy and idle providers do not imply failure
+    interval: 1m
+    input_series:
+      - series: 'up{job="custerra-backend",instance="backend:8080"}'
+        values: '1+0x15'
+      - series: 'custerra_provider_degraded_total{job="custerra-backend",provider="FIRMS",state="UNAVAILABLE"}'
+        values: '0+0x15'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: CusterraBackendMetricsUnavailable
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: CusterraProviderFailures
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: CusterraApiErrors
+        exp_alerts: []
+  - name: provider and dispatch failures are distinct from device delivery
+    interval: 1m
+    input_series:
+      - series: 'custerra_provider_degraded_total{job="custerra-backend",provider="USGS",state="UNAVAILABLE"}'
+        values: '0+1x15'
+      - series: 'custerra_notification_attempts_total{job="custerra-backend",outcome="UNCERTAIN"}'
+        values: '0+1x15'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: CusterraProviderFailures
+        exp_alerts:
+          - exp_labels: {provider: USGS, severity: warning}
+            exp_annotations: {summary: Custerra provider repeatedly unavailable}
+      - eval_time: 15m
+        alertname: CusterraPushDispatchFailures
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations: {summary: Custerra push dispatch requires investigation}
+  - name: errors workers and heap pressure trigger separate investigations
+    interval: 1m
+    input_series:
+      - series: 'http_server_requests_seconds_count{job="custerra-backend",status="200"}'
+        values: '0+9x15'
+      - series: 'http_server_requests_seconds_count{job="custerra-backend",status="500"}'
+        values: '0+1x15'
+      - series: 'custerra_job_failures_total{job="custerra-backend",exported_job="notifications"}'
+        values: '0 1+0x14'
+      - series: 'jvm_memory_used_bytes{job="custerra-backend",instance="backend:8080",area="heap"}'
+        values: '95+0x15'
+      - series: 'jvm_memory_max_bytes{job="custerra-backend",instance="backend:8080",area="heap"}'
+        values: '100+0x15'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: CusterraApiErrors
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations: {summary: Custerra API error ratio exceeds five percent}
+      - eval_time: 6m
+        alertname: CusterraWorkerFailures
+        exp_alerts:
+          - exp_labels: {exported_job: notifications, severity: warning}
+            exp_annotations: {summary: Custerra background work failed}
+      - eval_time: 6m
+        alertname: CusterraJvmHeapPressure
+        exp_alerts:
+          - exp_labels: {instance: 'backend:8080', severity: warning}
+            exp_annotations: {summary: Custerra JVM heap usage exceeds ninety percent}
