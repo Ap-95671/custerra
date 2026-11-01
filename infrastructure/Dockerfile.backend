@@ -5,6 +5,9 @@ RUN mvn -q dependency:go-offline
 COPY backend/src ./src
 RUN mvn -q -DskipTests package
 FROM eclipse-temurin:21-jre
+# Apply available distribution security fixes without changing the runtime family.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 RUN groupadd --system custerra && useradd --system --gid custerra custerra
 WORKDIR /app
 COPY --from=build /source/target/backend-0.0.1-SNAPSHOT.jar /app/backend.jar

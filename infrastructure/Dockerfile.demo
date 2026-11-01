@@ -16,6 +16,9 @@ RUN npm run build
 
 FROM eclipse-temurin:21-jre-jammy AS java
 FROM node:24-bookworm-slim
+# Apply available distribution security fixes without changing the runtime family.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 # Both processes start directly; npm and Yarn are unnecessary at runtime.
 RUN rm -rf /usr/local/lib/node_modules/npm /opt/yarn-* \
     && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg

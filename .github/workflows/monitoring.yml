@@ -1,0 +1,22 @@
+name: Verify monitoring rules
+on:
+  push:
+    paths: ['infrastructure/monitoring/**', '.github/workflows/monitoring.yml']
+  pull_request:
+    paths: ['infrastructure/monitoring/**', '.github/workflows/monitoring.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rules:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate and exercise private alert rules without network or secrets
+        run: |
+          docker pull prom/prometheus:v3.15.1
+          docker run --rm --network none --read-only --entrypoint promtool -v "$PWD/infrastructure/monitoring:/rules:ro" -w /rules prom/prometheus:v3.15.1 check rules alerts.yml
+          docker run --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m --entrypoint promtool -v "$PWD/infrastructure/monitoring:/rules:ro" -w /rules prom/prometheus:v3.15.1 test rules alerts.test.yml
