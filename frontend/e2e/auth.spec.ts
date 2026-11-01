@@ -45,6 +45,9 @@ test('login errors remain on the form; expired session clears saved data without
   await expect(page.getByRole('main').getByRole('alert')).toContainText('Invalid username or password.');
   signedIn = true;await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Saved journeys', exact: true })).toBeVisible();
+  // Let the initial authenticated load finish before expiring the fixture.
+  // Otherwise its in-flight response can remove the button before this click.
+  await expect(page.getByRole('button', { name: 'Reload journeys' })).toBeEnabled();
   expired = true;await page.getByRole('button', { name: 'Reload journeys' }).click();
   await expect(page.getByText('Your session has ended.', { exact: false })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Saved journeys', exact: true })).toHaveCount(0);

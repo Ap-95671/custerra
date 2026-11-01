@@ -19,4 +19,4 @@ jobs:
         run: |
           docker pull prom/prometheus:v3.15.1
           docker run --rm --network none --read-only --entrypoint promtool -v "$PWD/infrastructure/monitoring:/rules:ro" -w /rules prom/prometheus:v3.15.1 check rules alerts.yml
-          docker run --rm --network none --read-only --entrypoint promtool -v "$PWD/infrastructure/monitoring:/rules:ro" -w /rules prom/prometheus:v3.15.1 test rules alerts.test.yml
+          docker run --rm --network none --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m --entrypoint promtool -v "$PWD/infrastructure/monitoring:/rules:ro" -w /rules prom/prometheus:v3.15.1 test rules alerts.test.yml
