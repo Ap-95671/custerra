@@ -6,6 +6,9 @@ COPY frontend/ ./
 ENV NEXT_TELEMETRY_DISABLED=1 NEXT_PUBLIC_API_BASE_URL=""
 RUN npm run build
 FROM node:24-bookworm-slim
+# Apply available distribution security fixes without changing the runtime family.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 # Standalone Next runs with node directly; package managers are build-time only.
 RUN rm -rf /usr/local/lib/node_modules/npm /opt/yarn-* \
     && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg

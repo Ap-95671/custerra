@@ -113,7 +113,7 @@ jobs:
         component: [backend, frontend, ml, demo]
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -f infrastructure/Dockerfile.${{ matrix.component }} -t custerra-${{ matrix.component }}:ci .
+      - run: docker build --pull -f infrastructure/Dockerfile.${{ matrix.component }} -t custerra-${{ matrix.component }}:ci .
       - name: Verify runtime without build-only package managers
         if: matrix.component != 'backend'
         run: python3 scripts/verify-runtime-image.py --component ${{ matrix.component }} --image custerra-${{ matrix.component }}:ci --report security/runtime-tools.json
@@ -126,6 +126,8 @@ jobs:
       - name: Rehearse combined demo at observed Render resource limits
         if: matrix.component == 'demo'
         run: python3 scripts/verify-demo-runtime.py --image custerra-demo:ci --cpus 0.15 --report security/demo-runtime.json
+      - name: Enforce HIGH and CRITICAL container findings (including unfixed)
+        run: python3 scripts/check-container-advisories.py security/container-advisories.json --output security/container-acceptance.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
