@@ -1,0 +1,39 @@
+name: Bug report
+description: Report a reproducible, non-sensitive defect.
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, private journeys or vulnerability details. Read SECURITY.md for sensitive findings.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and impact
+      description: What happened, and which workflow is affected?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Use a synthetic account and public test coordinates. Include the affected revision and minimal steps.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and observed behavior
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser/OS, local or staging, source revision and UTC time. Do not include private hostnames or tokens.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Relevant errors or screenshots. Do not attach unredacted logs, sessions or database exports.

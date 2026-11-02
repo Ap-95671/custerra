@@ -1,0 +1,24 @@
+name: Documentation improvement
+description: Correct unclear, missing or outdated documentation.
+labels: [documentation, needs-triage]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Document or section
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is missing or incorrect?
+      description: Include a source revision or reproducible workflow when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Proposed correction and acceptance criteria
+      description: Distinguish implemented, locally verified, staging verified, experimental and planned behavior.
+    validations:
+      required: true
