@@ -2,7 +2,7 @@
 
 <p align="center"><img src="docs/assets/custerra-banner.svg" width="100%" alt="Custerra — understand hazards, navigate uncertainty"></p>
 
-<p align="center"><img src="docs/assets/status-candidate.svg" width="180" height="28" alt="V2 release candidate"> <img src="docs/assets/status-evidence.svg" width="180" height="28" alt="Source-linked evidence"> <img src="docs/assets/status-license.svg" width="180" height="28" alt="Software licence not selected"></p>
+<p align="center"><img src="docs/assets/status-candidate.svg" width="180" height="28" alt="V2 release candidate"> <img src="docs/assets/status-evidence.svg" width="180" height="28" alt="Source-linked evidence"> <img src="docs/assets/status-license.svg" width="180" height="28" alt="Apache-2.0 application code"></p>
 
 Custerra is a geospatial natural-hazard intelligence application for **location awareness, route exposure and monitored journeys**. It brings reported observations, their sources and their coverage limits into a coherent map and journey workflow.
 
@@ -188,10 +188,10 @@ Follow local government and emergency instructions. [Scientific and operational 
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Use the [issue forms](.github/ISSUE_TEMPLATE) and [pull request checklist](.github/PULL_REQUEST_TEMPLATE.md) for reproducible, focused changes.
 
-Sensitive vulnerabilities, credentials and private locations must not go in public issues. A verified private security/conduct reporting channel remains a publication gate; no response-time or bug-bounty promise is made.
+Sensitive vulnerabilities, credentials and private locations must not go in public issues. Use **Security → Report a vulnerability** for private security findings when that flow is available; see [SECURITY.md](SECURITY.md). No response-time or bug-bounty promise is made.
 
 ## Licence & maintainer
 
-**No application software licence has been selected.** Public source would not by itself make the project open source or grant broad commercial reuse rights. Third-party components and data retain their own terms. The owner confirmed creation/ownership of the Custerra logo; it is not automatically covered by a future code licence.
+Owner-controlled application code is licensed under **[Apache-2.0](LICENSE)**, approved by the owner on November 2, 2026. See [licensing scope](LICENSING.md) and [NOTICE](NOTICE). Third-party components, data, screenshots and brand rights retain their separate terms. Public source availability does not imply production security acceptance or scientific validation.
 
 Maintained by [Abhishek Prajapati](https://github.com/Ap-95671) · [LinkedIn](https://www.linkedin.com/in/abhishek-prajapati-a05252254/)

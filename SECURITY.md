@@ -4,7 +4,7 @@ Custerra is an experimental application under release review. No production-supp
 
 ## Report a vulnerability privately
 
-If this repository offers **Security → Report a vulnerability**, use that private reporting flow. Its availability is not assumed or represented as enabled. An owner-approved private security contact must be established before public release.
+If this repository offers **Security → Report a vulnerability**, use that private reporting flow. Its availability must be verified in the repository UI; use the private flow rather than an ordinary issue. No external reporting email is designated.
 
 Until that channel is available, do not submit exploit details, credentials or personal data in public issues, pull requests, screenshots or discussions. Ordinary issue templates are for non-sensitive defects only. Do not guess a maintainer email address or send private findings to an unverified recipient.
 
@@ -20,4 +20,4 @@ A private report should identify the affected revision, impact, minimal reproduc
 
 ## Publication status
 
-The repository remains private pending owner approval. Current and historical secret scanning, software/data/asset rights, private reporting access and release acceptance must be reviewed before a visibility change. No guaranteed response time or bug-bounty payment is offered.
+The owner approved public source release under Apache-2.0 on 2 November 2026 after a bounded publication review. Current source, advertised reachable history and retained CI logs/artifacts were reviewed separately from outstanding runtime vulnerability acceptance. Public source is not production release acceptance. No guaranteed response time or bug-bounty payment is offered.

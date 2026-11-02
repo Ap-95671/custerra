@@ -1,10 +1,10 @@
 # Third-party components, data and assets
 
-No application software licence has been selected. These notes do not grant rights to Custerra, its logo, third-party software or provider data. Preserve the applicable upstream notices and review the exact redistributed artifacts before release.
+Owner-controlled application code is licensed under [Apache-2.0](LICENSE); see [LICENSING.md](LICENSING.md) for scope. These notes do not replace upstream rights or grant brand/provider permissions. Preserve applicable notices and review exact packaged artifacts before distributing binaries or containers.
 
 ## Software
 
-The project uses Java/Spring, PostgreSQL, React/Next.js, Leaflet, Python/FastAPI and scientific Python packages. Dependency manifests identify versions; their licences remain separate from any eventual application licence.
+The project uses Java/Spring, PostgreSQL, React/Next.js, Leaflet, Python/FastAPI and scientific Python packages. Dependency manifests identify versions; their licences remain separate from the application code licence.
 
 The npm lock inventory includes MIT, Apache-2.0, ISC, BSD, MPL-2.0, LGPL-3.0-or-later and compound declarations. Native image-processing distributions include LGPL-related terms. Review required notices, corresponding source/relinking obligations where applicable and artifact-specific distribution before publishing binaries or containers. Maven inherited licences, Python transitives and container OS components require additional review.
 
@@ -27,7 +27,7 @@ Faroudja Abid (2019), *Algerian Forest Fires*, UCI Machine Learning Repository, 
 
 ## Logo, screenshots and fonts
 
-The Custerra logo was supplied by the owner. The owner explicitly confirmed creating and owning the logo. That statement is recorded provenance; no third-party endorsement is implied, and a future code licence does not automatically license the brand asset. Authentic application screenshots use public test locations and synthetic accounts, preserve source credit and do not constitute endorsement. Map/provider data retain their respective rights.
+The Custerra logo was supplied by the owner. The owner explicitly confirmed creating and owning the logo. That statement is recorded provenance; no third-party endorsement is implied, and the code licence does not separately license the brand asset. Authentic application screenshots use public test locations and synthetic accounts, preserve source credit and do not constitute endorsement. Map/provider data retain their respective rights.
 
 The interface uses system font stacks rather than bundled downloadable fonts. No rights to third-party logos or institutional endorsement are claimed.
 

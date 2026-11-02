@@ -4,7 +4,7 @@ Treat collaborators respectfully. Give specific, constructive feedback and discu
 
 Harassment, threats, discriminatory abuse, sexual harassment, disclosure of another person’s private information and deliberate disruption are not acceptable. Do not publish private locations, account records or security-sensitive material in community spaces.
 
-This policy applies to project issues, pull requests and other project-managed discussions. It does not imply that open-source licensing or public external contributions have been approved.
+This policy applies to project issues, pull requests and other project-managed discussions. The application license and exceptions are recorded in [LICENSING.md](LICENSING.md); this conduct policy does not change those terms.
 
 Maintainers may ask participants to revise or remove inappropriate content, limit participation or close a discussion. Responses should be proportionate to the behavior and protect the privacy of affected people.
 

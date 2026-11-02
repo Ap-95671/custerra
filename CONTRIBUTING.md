@@ -1,6 +1,6 @@
 # Contributing to Custerra
 
-Custerra is in development. Release acceptance and a software licence decision are still open. Please discuss substantial work in an issue before writing it; access to this repository does not establish an open-source licence or contributor agreement.
+Custerra is in development; production release acceptance remains open. Owner-controlled application code uses Apache-2.0; review [licensing scope](LICENSING.md). Discuss substantial work in an issue before writing it. Submit only contributions you have the right to provide under the applicable license and retain third-party provenance.
 
 ## Set up the project
 
@@ -31,4 +31,4 @@ Use the issue templates. A bug needs reproducible steps and expected/observed be
 
 ## Security and conduct
 
-Follow [SECURITY.md](SECURITY.md) for sensitive findings and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) when collaborating. Do not post credentials, private journeys or vulnerability exploits in public issues. A maintainer-approved private reporting contact is a public-release gate.
+Follow [SECURITY.md](SECURITY.md) for sensitive findings and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) when collaborating. Do not post credentials, private journeys or vulnerability exploits in public issues. Private security reports use GitHub’s repository reporting flow when available. Private conduct reporting remains to be designated; do not post sensitive conduct reports publicly.
