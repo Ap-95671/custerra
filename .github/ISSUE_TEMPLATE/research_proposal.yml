@@ -1,0 +1,31 @@
+name: Research proposal
+description: Propose a bounded experiment with reproducible evaluation.
+labels: [research, needs-triage]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Research question and practical relevance
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Data, provenance and redistribution rights
+      description: Identify the source, licence, geographic/time scope and privacy constraints.
+    validations:
+      required: true
+  - type: textarea
+    id: protocol
+    attributes:
+      label: Evaluation protocol
+      description: Include baselines, geographic/time holdouts, leakage controls, uncertainty and failure analysis.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria and limits
+      description: Define reproducible artifacts and a release decision. An experiment does not establish validated operational hazard prediction.
+    validations:
+      required: true
