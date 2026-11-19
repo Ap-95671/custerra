@@ -18,7 +18,14 @@ public class MonitoredTripRepository {
             route(rs), rs.getTimestamp("created_at").toInstant(),
             rs.getTimestamp("last_attempt_at") == null ? null : rs.getTimestamp("last_attempt_at").toInstant(),
             rs.getTimestamp("last_checked_at") == null ? null : rs.getTimestamp("last_checked_at").toInstant(),
-            rs.getString("last_error"), readAssessment(rs.getString("assessment")), checkpoints(rs.getObject("id", UUID.class)),generated(rs),progress(rs));
+            rs.getString("last_error"), readAssessment(rs.getString("assessment")), List.of(),generated(rs),progress(rs));
+    private MonitoringResponse withCheckpoints(MonitoringResponse journey) {
+        // Fetch only after the main query releases its connection. Borrowing from
+        // a row mapper can exhaust a small pool under concurrent journey reads.
+        return new MonitoringResponse(journey.id(),journey.name(),journey.status(),journey.route(),
+                journey.createdAt(),journey.lastAttemptAt(),journey.lastCheckedAt(),journey.lastError(),
+                journey.assessment(),checkpoints(journey.id()),journey.generatedGeometry(),journey.progress());
+    }
     private RouteRiskRequest route(java.sql.ResultSet rs) throws java.sql.SQLException {
         var route=readRoute(rs.getString("route"));var encoded=rs.getString("encoded_geometry");
         return encoded==null?route:new RouteRiskRequest(com.nci.backend.route.provider.EncodedRoute.decode(encoded),route.corridorKm(),route.days(),route.minMagnitude());
@@ -54,13 +61,13 @@ public class MonitoredTripRepository {
         return find(id, false).orElseThrow();
     }
     public Optional<MonitoringResponse> find(UUID id, boolean lock) {
-        return jdbc.query("select * from monitored_journey where id=? and owner_id=?" + (lock ? " for update" : ""), mapper, id, current.id()).stream().findFirst();
+        return jdbc.query("select * from monitored_journey where id=? and owner_id=?" + (lock ? " for update" : ""), mapper, id, current.id()).stream().findFirst().map(this::withCheckpoints);
     }
     public Optional<MonitoringResponse> findForMonitoring(UUID id, boolean lock) {
-        return jdbc.query("select * from monitored_journey where id=? and owner_id is not null" + (lock ? " for update" : ""),mapper,id).stream().findFirst();
+        return jdbc.query("select * from monitored_journey where id=? and owner_id is not null" + (lock ? " for update" : ""),mapper,id).stream().findFirst().map(this::withCheckpoints);
     }
     public List<MonitoringResponse> list(int offset) {
-        return jdbc.query("select * from monitored_journey where owner_id=? order by created_at desc,id limit 50 offset ?", mapper, current.id(), offset);
+        return jdbc.query("select * from monitored_journey where owner_id=? order by created_at desc,id limit 50 offset ?", mapper, current.id(), offset).stream().map(this::withCheckpoints).toList();
     }
     public void status(UUID id, String status) {
         jdbc.update("update monitored_journey set status=? where id=?", status, id);

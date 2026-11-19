@@ -30,6 +30,7 @@ class JourneyPersistenceTests {
     @Autowired MonitoredTripRepository repository;
     @Autowired HistoryRepository histories;
     @Autowired JdbcTemplate jdbc;
+    @Autowired tools.jackson.databind.ObjectMapper json;
     @MockitoBean RouteRiskService risk;
     @MockitoBean com.nci.backend.auth.CurrentAccount current;
     private static final UUID OWNER=UUID.fromString("88888888-8888-4888-8888-888888888888");
@@ -61,6 +62,30 @@ class JourneyPersistenceTests {
         assertThatThrownBy(()->service.progress(saved.id(),update)).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
         service.status(saved.id(),"PAUSED");assertThat(service.get(saved.id()).progress()).isNull();
         service.status(saved.id(),"COMPLETED");assertThatThrownBy(()->service.status(saved.id(),"ACTIVE")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+    }
+    @Test
+    @Transactional(propagation=org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
+    void journeyReadsReleaseTheirConnectionBeforeFetchingCheckpoints() {
+        String url=System.getenv("TEST_DB_URL");
+        assertThat(url).matches("jdbc:postgresql://127\\.0\\.0\\.1:[0-9]+/custerra_[a-zA-Z0-9_]+_test");
+        var saved=service.create(new MonitoringRequest("Single connection fixture",ROUTE));
+        Instant checked=Instant.parse("2026-11-19T00:00:00Z");
+        try {
+            repository.checkpoint(saved.id(),"USGS",checked);
+            var config=new com.zaxxer.hikari.HikariConfig();
+            config.setJdbcUrl(url);config.setUsername(System.getenv("TEST_DB_USERNAME"));
+            config.setPassword(System.getenv("TEST_DB_PASSWORD"));config.setMaximumPoolSize(1);
+            config.setMinimumIdle(0);config.setConnectionTimeout(250);
+            try(var pool=new com.zaxxer.hikari.HikariDataSource(config)) {
+                var reader=new MonitoredTripRepository(new JdbcTemplate(pool),json,current);
+                var expected=new MonitoringResponse.ProviderCheckpoint("USGS",checked);
+                assertThat(reader.find(saved.id(),false).orElseThrow().providerCheckpoints()).containsExactly(expected);
+                assertThat(reader.findForMonitoring(saved.id(),false).orElseThrow().providerCheckpoints()).containsExactly(expected);
+                assertThat(reader.list(0)).filteredOn(journey->journey.id().equals(saved.id()))
+                        .singleElement().satisfies(journey->assertThat(journey.providerCheckpoints()).containsExactly(expected));
+                assertThat(pool.getHikariPoolMXBean().getActiveConnections()).isZero();
+            }
+        } finally { service.delete(saved.id()); }
     }
     @Test void generatedMonitoringUsesRemainingGeometryAndFallsBackWhenProgressIsStale() {
         var saved=service.createGenerated(new GeneratedJourneyRequest("Generated","Origin","Destination",generatedGeometry(),25.,7,4.));
