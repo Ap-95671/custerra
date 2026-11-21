@@ -27,21 +27,25 @@ It helps answer **“What has been reported around this place or route?”** Ove
 
 These capabilities describe the **V2 release candidate**. The application runtime on the default branch remains the earlier release until its separate acceptance and rollout decision. The setup below selects the V2 candidate explicitly. Documentation updates do not deploy either runtime.
 
-## Product previews
+## V3 product previews
 
-The images below are authentic **staging previews**, using public test locations and a synthetic account. They are not production acceptance evidence.
+Screenshots from the local V3 release candidate, using public locations and a disposable journey account. The hosted staging preview currently runs V2.
 
-### Location intelligence
+### Hazard explorer
 
-![Custerra showing real USGS observations around San Francisco, map layers and an UNKNOWN overall risk state](docs/assets/screenshots/location-explorer.jpg)
+![Custerra V3 map showing USGS earthquakes around San Francisco, with a selected observation and its source details](docs/assets/screenshots/v3-explorer.jpg)
 
-### Route exposure
+### Route planning
 
-![A real Berlin–Potsdam driving route with OSRM/OpenStreetMap attribution and UNKNOWN earthquake exposure](docs/assets/screenshots/driving-route.jpg)
+![Berlin–Potsdam driving route in the V3 planner, with map geometry and an UNKNOWN exposure state](docs/assets/screenshots/v3-route.jpg)
 
-[Read-only journey copy and capture context](docs/assets/screenshots/README.md). Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright); earthquake evidence: [USGS](https://earthquake.usgs.gov/fdsnws/event/1/); routing: OSRM / OpenStreetMap contributors.
+### Journey monitoring
 
-The [free staging preview](https://custerra-v2-staging.onrender.com) can sleep or stop at resource limits. Background monitoring and outbound push are disabled. Weather returned an upstream 502 in the latest bounded acceptance run; unavailable evidence is shown explicitly.
+![Active Berlin–Potsdam journey showing a manual evidence check, incomplete coverage, and saved route geometry](docs/assets/screenshots/v3-monitor.jpg)
+
+[Historical earthquake catalog](docs/assets/screenshots/v3-history.jpg) · [Caltrans District 4 closure reports](docs/assets/screenshots/v3-road-closures.png) · [Capture dates, sources and archived V2 images](docs/assets/screenshots/README.md).
+
+Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright). Earthquake observations: [USGS](https://earthquake.usgs.gov/fdsnws/event/1/). Driving geometry: OSRM / OpenStreetMap contributors.
 
 ## System architecture
 
