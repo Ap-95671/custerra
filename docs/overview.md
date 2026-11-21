@@ -2,6 +2,14 @@
 
 Custerra uses a Spring Boot API and a Next.js/React interface. It is a modular application with explicit provider boundaries; empty scaffold files do not represent deployed services.
 
+## V3 workspace preview
+
+The evidence inspector shows the selected observation, original source, and retrieval time alongside the map. The V3 candidate also adds [journey monitoring](assets/screenshots/v3-monitor.jpg), [historical catalogs](assets/screenshots/v3-history.jpg), and [regional closure reports](assets/screenshots/v3-road-closures.png).
+
+![Custerra V3 workspace with a selected USGS earthquake around San Francisco and its source evidence](assets/screenshots/v3-explorer.jpg)
+
+Earthquake observations: [USGS](https://earthquake.usgs.gov/fdsnws/event/1/). Map data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright). [Browse the V3 screenshot gallery](assets/screenshots/README.md).
+
 ## Request and data boundaries
 
 The hosted browser calls a same-origin Next.js API proxy. It forwards an allowlisted consumer/B2B API surface to the backend; private actuator and internal operations paths are not publicly proxied. The combined free demo runs the API on loopback. Separate deployment configurations can keep API, database and research services on a private network.
