@@ -41,6 +41,14 @@ public class RoutePlanningService {
     public PlannedRouteResponse plan(RoutePlanRequest request) {
         reserveRoute();
         var route=router.route(request.origin(),request.destination(),request.mode());
+        return describe(request,route);
+    }
+    public record Alternatives(List<PlannedRouteResponse> routes,Instant retrievedAt,List<String> limitations) {}
+    public Alternatives alternatives(RoutePlanRequest request) {
+        reserveRoute();var routes=router.alternatives(request.origin(),request.destination(),request.mode());
+        return new Alternatives(routes.stream().limit(3).map(route->describe(request,route)).toList(),clock.instant(),List.of("Provider may return only one route. No route is ranked or recommended as safer.","Exposure uses separately timestamped observations under identical query filters; missing evidence is not zero."));
+    }
+    private PlannedRouteResponse describe(RoutePlanRequest request,RouteProvider.RoutePlan route) {
         PlannedRouteResponse.Exposure exposure=null; String error=null;
         try {
             var result=risk.assessGenerated(new RouteRiskRequest(route.points(),request.corridorKm(),request.days(),request.minMagnitude()));
@@ -58,6 +66,6 @@ public class RoutePlanningService {
                 points.size()-1,route.source(),route.retrievedAt(),exposure,error,List.of("Driving only; routes over 900 km are not supported yet.",
                 "Duration excludes live traffic and hazard impacts. Endpoints may snap up to 5 km to the road network.",
                 "Earthquake exposure only in this milestone. Other hazard families remain unassessed.",
-                "Preview only: saving a generated driving route as a monitored journey is not connected yet."));
+                "Saving this geometry creates a planned journey. Monitoring requires explicit activation and an enabled worker."));
     }
 }

@@ -14,6 +14,8 @@ public class RoutePlanningController {
     public RoutePlanningController(RoutePlanningService service) { this.service=service; }
     @GetMapping("/geocoding/search")
     public Places search(@RequestParam @NotBlank @Size(min=2,max=120) String q) { return service.search(q); }
+    @PostMapping("/routes/alternatives")
+    public RoutePlanningService.Alternatives alternatives(@Valid @RequestBody RoutePlanRequest request){return service.alternatives(request);}
     @PostMapping("/routes/plan")
     public PlannedRouteResponse plan(@Valid @RequestBody RoutePlanRequest request) { return service.plan(request); }
 }

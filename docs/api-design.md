@@ -1,3 +1,5 @@
+V2 additive generated-journey/progress/history/worker APIs and B2B operation scopes are inventoried in [the consolidated report](custerra-v2-report.md).
+
 # API contract
 
 Base path: `/api/v1`. Responses are JSON. Public hazard, risk, weather and planning reads need no authentication. Journeys, history snapshots and notifications require an authenticated owner. All unsafe methods require a CSRF token.
@@ -207,3 +209,40 @@ See [session endpoints and ownership contract](authentication.md). Registration/
 ## Milestone 20 external API
 
 The separate bearer-only `/api/v1/b2b` namespace exposes USGS nearby evidence, the existing experimental earthquake indicator and supplied-route exposure. Account sessions manage clients under `/api/v1/developer`; those endpoints retain CSRF and owner checks. See [B2B authentication, quotas and examples](b2b-api.md) and [OpenAPI](b2b-openapi.yaml). Personal journey/history resources are not accessible through API keys.
+
+## V3 source intelligence (local candidate, 4 November 2026)
+
+These additive APIs preserve the older point-observation contracts. New source records use their own schema, with original classifications and optional GeoJSON geometry. They do not change overall risk from UNKNOWN.
+
+| Endpoint | Contract and limits |
+| --- | --- |
+| `GET /intelligence/nearby` | Latitude/longitude, radius 1–1,000 km, days 1–30. Source-geometry intersection/distance. NWS California only; area-text-only products cannot be localized. EONET geometry is approximate context. |
+| `GET /intelligence/timeline` | At most 700 available-feed records. NWS active California snapshot; EONET one 30-day page of at most 200 events. This is not a complete global archive. |
+| `POST /intelligence/route` | Exactly one of full `geometry` (polyline6) or `points` (2–20,000). Route 0.001–900 km; at most 60 candidate geometries and 8 million coordinate-work units. Returns original segment indices, nullable intersection/length, method and explicit truncation. |
+| `POST /intelligence/compare` | Two or three named destinations, identical radius/day filters. Separate USGS observations and source-geometry evidence; no safety ranking. |
+| `GET /intelligence/elevation` | Valid latitude/longitude. Open-Meteo/Copernicus GLO-90 elevation, source, time and limitations. One request/second process throttle; exact-location cache up to 24 hours/200 entries. Context is not susceptibility. |
+| `POST /intelligence/explain` | `{source,id}` must identify retrieved server evidence. Deterministic source summary with references. No LLM or user-provided forecast. |
+| `POST /routes/alternatives` | Existing route-plan request. One provider request, up to three distinct complete geometries; provider can return one. Separate evidence timestamps and failures. No safer-route recommendation. |
+| `GET/POST /locations` | Authenticated private list/create, at most 20 locations. Name, coordinates, radius and days are required. Monitoring starts off. |
+| `GET/DELETE /locations/{id}` | Owner-only; foreign IDs return 404. Delete cascades check history. |
+| `PATCH /locations/{id}/monitoring` | Required boolean `enabled`; explicit per-location opt-in. Does not turn on the server scheduler. |
+| `POST /locations/{id}/check`, `GET /locations/{id}/history` | Manual source check; at most 30 retained checks, independent source baselines and NEW/UPDATED changes. Failed/partial sources cannot establish disappearance. Baselines retain at most 1,000 identities/source. In-app history only. |
+| `GET /locations/configuration` | Actual scheduler state and supported in-app history channel. Optional scheduler: ten due locations per cycle, ten-minute eligibility, globally disabled by default. |
+| `GET/POST /journeys/{id}/areas` | Owner-only saved source-area assessment. Active journeys use recent reliable progress, otherwise full route. Remaps to original segment indices. Complete source failure retains earlier evidence/time with an error and new attempt time. |
+
+All paths above are relative to `/api/v1`. Unsafe methods retain CSRF checks; public intelligence reads retain process-local throttling. Source text is rendered as text. HTTPS source URLs are checked; upstream URLs are fixed. NWS/EONET snapshots have 60-second cache/backoff and a 2 MB body limit; user coordinates are not sent to these global/regional feeds. NWS severity is its own source classification, not the older normalized severity enum. Explicit source update references can be grouped only within the same source/authority; original records remain separate.
+
+Geometry uses JTS 1.20.0 for bounded planar topology with longitude unwrapping and spherical lengths. Polygon holes, boundaries and date-line crossings are supported; polar geometry beyond ±85° and work-limit cases are unassessed. Geometry intersection is not actual impact, a verified flood perimeter or a road closure. No down migrations were added. V12 adds private saved locations/checks; V13 adds saved journey-area evidence.
+
+### November 18 audit additions
+
+- `POST /api/v1/intelligence/compare` accepts an optional `history` object with `from`, `to` and `minMagnitude`. The past UTC window includes `from` and excludes `to`, spans 1–3,660 days, and starts in 1900 or later. The comparison applies its existing radius and one shared historical window to every requested destination. It preserves per-destination USGS retrieval and coverage. A truncated count is a lower bound and has no annual frequency. An unavailable result has null count and frequency. The opt-in history lookup creates no saved snapshot. Requests without `history` retain their preceding response shape.
+- `GET /api/v1/intelligence/rainfall?latitude=…&longitude=…` returns seven UTC daily modeled rainfall totals from Open-Meteo/ECMWF ERA5, ending eight UTC days before retrieval. It includes model-grid coordinates, source and retrieval timestamp. A missing day is null, and any missing day withholds the window total. Malformed units, dates or data fail the request. The endpoint uses a bounded 12-hour in-process cache, a one-request start per second budget and one in-flight request. This evidence provides delayed rainfall context.
+- `GET /api/v1/intelligence/elevation?latitude=…&longitude=…&includeSlope=true` optionally reports a central-difference slope from four Copernicus GLO-90 samples 225 m from the point, using a single provider request. Unusable neighbor samples and high latitudes withhold slope while preserving valid center elevation. The stencil describes broad modeled relief. The source resolution and service terms are returned with the result.
+- Linked source revisions remain based on explicit references from the same authority. Map trails connect reported positions as contextual display. The route intersection engine continues using supplied source geometry.
+
+### November 19 road-closure check
+
+`POST /api/v1/intelligence/road-closures` accepts one polyline6 `geometry` or `points` array, using the existing 2–20,000-point and 0.001–900 km route limits. This is an on-demand read for Route Planning and Saved Journeys. The backend fetches a fixed Caltrans District 4 JSON URL with a five-minute cache, a one-minute retry window and a bounded payload. It does not send the trip coordinates to Caltrans or store the result. Routes outside a conservative Bay Area envelope skip the upstream request.
+
+The endpoint displays reported closure start or end points up to 500 m from an original route segment. It retains source road, facility, direction, reported closure type, start status, schedule, and source/retrieval times. A started closure requires the source start flag. Ended and canceled revisions are excluded. A source snapshot older than 30 minutes suppresses matching and reports `STALE`. Missing source data reports `UNAVAILABLE`. The check returns at most 30 results and explicitly flags work/item truncation. It does not establish that a route uses the reported road, direction or ramp or that unlisted roads are clear. The Caltrans portal publishes the data for applications and states its update schedule. [Feed](https://cwwp2.dot.ca.gov/lane-closure.html) · [Field definitions](https://cwwp2.dot.ca.gov/documentation/lcs/lcs-field-description.html).

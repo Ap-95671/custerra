@@ -71,4 +71,13 @@ class PlanningProviderTests {
         assertThatThrownBy(()->geocoder().search("Delhi")).isInstanceOf(ProviderException.class);
         assertThatThrownBy(()->router().route(from,to,RouteProvider.TravelMode.DRIVING)).isInstanceOfSatisfying(ProviderException.class,e->assertThat(e.getStatusCode().value()).isEqualTo(504));
     }
+    @Test void alternativesUseOneBoundedRequestAndRemoveDuplicateGeometry() {
+        String one=route("Ok","112000");
+        String body=one.replace("]}",","+one.substring(one.indexOf("[{" )+1,one.length()-2)+"]}");
+        server.expect(request->assertThat(request.getURI().toString()).contains("alternatives=true","overview=full"))
+            .andRespond(withSuccess(body,MediaType.APPLICATION_JSON));
+        var routes=router().alternatives(from,to,RouteProvider.TravelMode.DRIVING);
+        assertThat(routes).hasSize(1);assertThat(routes.getFirst().geometry()).isEqualTo(geometry);server.verify();
+    }
+
 }

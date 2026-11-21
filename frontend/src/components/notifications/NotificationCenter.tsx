@@ -4,8 +4,8 @@ import { z } from 'zod';
 import { api } from '../../lib/api/journeyApi';
 import { noticesSchema } from '../../types/journey';
 import { safeSourceUrl } from '../../types/hazard';
-import FeatureNav from '../layout/FeatureNav';
 import { SessionGate } from '../auth/SessionProvider';
+import LoadingState from '../common/LoadingState';
 const hazards=['EARTHQUAKE','FLOOD','LANDSLIDE','WILDFIRE','TSUNAMI','CYCLONE','HURRICANE','TYPHOON','TORNADO','VOLCANIC_ERUPTION','SEVERE_WEATHER'] as const;
 const levels=['UNKNOWN','INFO','LOW','MODERATE','HIGH','CRITICAL'] as const;
 const preferencesSchema=z.object({ enabled:z.boolean(),pushEnabled:z.boolean(),hazardTypes:z.array(z.enum(hazards)),minimumSeverity:z.enum(levels),includeUnknown:z.boolean() });
@@ -15,6 +15,7 @@ type Item=z.infer<typeof itemSchema>;type Preferences=z.infer<typeof preferences
 function Inbox() {
   const [items,setItems]=useState<Item[]>([]);const [detail,setDetail]=useState<Item|null>(null);const [page,setPage]=useState(0);
   const [preferences,setPreferences]=useState<Preferences|null>(null);const [push,setPush]=useState<z.infer<typeof pushSchema>|null>(null);
+  const [readFilter,setReadFilter]=useState('all');const [hazardFilter,setHazardFilter]=useState('all');const [severityFilter,setSeverityFilter]=useState('all');
   const [busy,setBusy]=useState(true);const [error,setError]=useState('');const [message,setMessage]=useState('');
   useEffect(()=>{ const controller=new AbortController();
     const selected=new URLSearchParams(window.location.search).get('notice');
@@ -50,10 +51,11 @@ function Inbox() {
     <p>{event.hazardType ?? 'EARTHQUAKE'} · {event.informationType ?? 'OBSERVED_EVENT'} · {event.source} · provider severity {event.severity ?? 'UNKNOWN'}</p>
     <a href={safeSourceUrl(event.sourceUrl)}>{event.title}</a><p>{item.notice.explanation}</p><p>{item.notice.evidence.distanceKm.toFixed(1)} km from segment {item.notice.evidence.segmentIndex+1}</p>
     {item.deliveries.map((delivery,index)=><p key={index}>{delivery.channel}: {delivery.status} · attempts {delivery.attempts}{delivery.lastError?` · ${delivery.lastError}`:''}</p>)}
-    {!item.readAt && <button disabled={busy} onClick={()=>void run(async()=>{await api(`notifications/${item.id}/read`,z.null(),'POST');await load(page);if(detail?.id===item.id)setDetail(await api(`notifications/${item.id}`,itemSchema));})}>Mark read</button>}</article>; }
+    <button disabled={busy} onClick={()=>setDetail(item)}>Inspect notice</button> {!item.readAt && <button disabled={busy} onClick={()=>void run(async()=>{await api(`notifications/${item.id}/read`,z.null(),'POST');await load(page);if(detail?.id===item.id)setDetail(await api(`notifications/${item.id}`,itemSchema));})}>Mark read</button>}</article>; }
+  const filtered=items.filter(item=>(readFilter==='all' || (readFilter==='unread'?!item.readAt:!!item.readAt)) && (hazardFilter==='all' || item.notice.evidence.event.hazardType===hazardFilter) && (severityFilter==='all' || (item.notice.evidence.event.severity??'UNKNOWN')===severityFilter));
   return <><h1>Journey notifications</h1><p>Informational changes in retrieved evidence, not emergency orders. SENT means a push service accepted the message; it does not confirm device delivery. UNCERTAIN outcomes are not automatically resent.</p>
-    {busy && <p role="status">Working…</p>}{error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
-    {preferences && <form className="feature-card" onSubmit={e=>{e.preventDefault();void run(()=>save(preferences));}}><fieldset disabled={busy}><legend>Notification preferences</legend>
+    {busy && preferences && <p role="status">Updating notifications…</p>}{error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
+    <details className="inbox-preferences"><summary>Notification preferences & browser delivery</summary>{preferences && <form className="feature-card" onSubmit={e=>{e.preventDefault();void run(()=>save(preferences));}}><fieldset disabled={busy}><legend>Notification preferences</legend>
       <label><input type="checkbox" checked={preferences.enabled} onChange={e=>setPreferences({...preferences,enabled:e.target.checked})}/>Create notifications for future journey notices</label>
       <label><input type="checkbox" checked={preferences.pushEnabled} onChange={e=>setPreferences({...preferences,pushEnabled:e.target.checked})}/>Allow web push to subscribed browsers</label>
       <label>Minimum provider severity<select value={preferences.minimumSeverity} onChange={e=>setPreferences({...preferences,minimumSeverity:e.target.value as Preferences['minimumSeverity']})}>{levels.map(level=><option key={level}>{level}</option>)}</select></label>
@@ -64,8 +66,8 @@ function Inbox() {
     <section className="feature-card"><h2>Browser delivery</h2><p>{push?.configured?'Web push keys are configured.':'Web push is unavailable until the server operator configures VAPID keys and a contact URI.'} {push?.dispatcherEnabled?'Dispatch is enabled.':'Dispatch is disabled on this server.'}</p>
       <p>Opting in may show journey names and source event details on your lock screen. Signing out revokes subscriptions registered in that session; messages already accepted by a push service may still arrive.</p>
       <button disabled={busy||!push?.configured||!push.dispatcherEnabled} onClick={()=>void run(enablePush)}>Enable this browser</button> <button disabled={busy} onClick={()=>void run(disablePush)}>Disable this browser</button></section>
-    {detail && <section aria-label="Selected notification"><h2>Selected notification</h2>{card(detail)}</section>}
-    <section aria-label="Notification inbox"><h2>Recent notifications</h2>{items.map(card)}{!items.length && <p>No notifications on this page. This does not establish safe travel conditions.</p>}
+    </details>{detail && <section aria-label="Selected notification"><h2>Selected notification</h2>{card(detail)}</section>}
+    <section aria-label="Notification inbox"><h2>Recent notifications</h2><div className="inbox-filters"><label>Read state<select value={readFilter} onChange={e=>setReadFilter(e.target.value)}><option value="all">All notices</option><option value="unread">Unread</option><option value="read">Read</option></select></label><label>Hazard family<select value={hazardFilter} onChange={e=>setHazardFilter(e.target.value)}><option value="all">All hazards</option>{hazards.map(h=><option key={h} value={h}>{h}</option>)}</select></label><label>Provider severity filter<select value={severityFilter} onChange={e=>setSeverityFilter(e.target.value)}><option value="all">All severities</option>{levels.map(l=><option key={l} value={l}>{l}</option>)}</select></label></div><p className="timestamp">Filters apply to the current page of retrieved notices.</p><div className="notification-grid">{filtered.map(card)}</div>{items.length>0 && !filtered.length && <p className="empty">No notices match these filters on the current page.</p>}{busy && !preferences && <LoadingState message="Loading notifications…"/>}{!busy && !error && !items.length && <p>No notifications on this page. This does not establish safe travel conditions.</p>}
       <button disabled={busy||page===0} onClick={()=>void run(()=>load(page-1))}>Previous notifications</button> <button disabled={busy||items.length<50} onClick={()=>void run(()=>load(page+1))}>Next notifications</button> <button disabled={busy} onClick={()=>void run(()=>load(page))}>Reload notifications</button></section></>;
 }
-export default function NotificationCenter() { return <div className="app-shell"><FeatureNav/><main className="feature-page"><SessionGate><Inbox/></SessionGate></main></div>; }
+export default function NotificationCenter() { return <div className="app-shell"><main className="feature-page"><SessionGate><Inbox/></SessionGate></main></div>; }

@@ -1,15 +1,23 @@
 "use client";
+import dynamic from 'next/dynamic';
 import { useState, type FormEvent } from 'react';
-import FeatureNav from '../layout/FeatureNav';
 import { SessionGate } from '../auth/SessionProvider';
 import { api } from '../../lib/api/journeyApi';
 import { historySchema, type History } from '../../types/history';
 import { safeSourceUrl } from '../../types/hazard';
+import HistoryCharts from './HistoryCharts';
+const HistoryMap = dynamic(() => import('./HistoryMap'), {
+  ssr: false,
+  loading: () => <div className="map-loading" role="status"><span>Loading the historical map…</span></div>,
+});
 function HistoryWorkspace() {
   const [data, setData] = useState<History | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+  const selectedEvent = data?.events.find(event => `${event.source}:${event.externalId}` === selected);
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [id, setId] = useState('');
   async function run(action: () => Promise<History>) {
-    setBusy(true); setError(''); setData(null);
+    setBusy(true); setError(''); setData(null); setSelected(null); setMapOpen(false);
     try { const result = await action(); setData(result); setId(result.id); }
     catch (e) { setError(e instanceof Error ? e.message : 'Request failed.'); }
     finally { setBusy(false); }
@@ -27,7 +35,20 @@ function HistoryWorkspace() {
     </div><p>Use a past window of 1–3,660 days. At most 2,000 events are retained; incomplete results withhold frequency.</p><button type="submit">Retrieve & save history</button></fieldset></form>
     <form className="feature-card" onSubmit={e => { e.preventDefault(); if (/^[0-9a-f-]{36}$/i.test(id)) void run(() => api(`history/earthquakes/${id}`, historySchema)); else setError('Enter a valid snapshot ID.'); }}><label>Saved snapshot ID<input required value={id} onChange={e => setId(e.target.value)}/></label><button disabled={busy}>Load snapshot</button></form>
     {busy && <p role="status">Retrieving historical evidence…</p>}{error && <p role="alert">{error}</p>}
-    {data && <section className="feature-card" aria-label="Historical result"><h2>{data.truncated ? 'At least ' : ''}{data.eventCount} matching earthquakes</h2><p>Observed annual frequency: <strong>{data.annualFrequency === null ? 'Unavailable — incomplete catalog response' : `${data.annualFrequency.toFixed(2)} events/year`}</strong></p><p>{data.query.from} to {data.query.to} · {data.query.radiusKm} km · magnitude ≥ {data.query.minMagnitude}</p><p>{data.explanation}</p><p>Snapshot <code>{data.id}</code> · {data.modelVersion} · retrieved {data.fetchedAt}</p><a href={safeSourceUrl(data.source.documentationUrl)}>{data.source.attribution}</a><details><summary>Stored event evidence ({data.events.length})</summary><ul>{data.events.map(event => <li key={`${event.source}:${event.externalId}`}><a href={safeSourceUrl(event.sourceUrl)}>{event.title}</a> · {event.startedAt} · M {event.measurements.magnitude ?? 'unknown'}</li>)}</ul></details></section>}
+    {data && <section className="feature-card" aria-label="Historical result"><h2>{data.truncated ? 'At least ' : ''}{data.eventCount} matching earthquakes</h2><p>Observed annual frequency: <strong>{data.annualFrequency === null ? 'Unavailable — incomplete catalog response' : `${data.annualFrequency.toFixed(2)} events/year`}</strong></p><p>{data.query.from} to {data.query.to} · {data.query.radiusKm} km · magnitude ≥ {data.query.minMagnitude}</p><p>{data.explanation}</p><p>Snapshot <code>{data.id}</code> · {data.modelVersion} · retrieved {data.fetchedAt}</p><a href={safeSourceUrl(data.source.documentationUrl)}>{data.source.attribution}</a><HistoryCharts data={data}/>
+      {data.events.length > 0 && Math.abs(data.query.latitude) <= 85 && <>
+        <button type="button" aria-expanded={mapOpen} aria-controls="historical-map-panel" onClick={() => setMapOpen(!mapOpen)}>{mapOpen ? 'Hide event map' : 'Show event map'}</button>
+        <div id="historical-map-panel" hidden={!mapOpen}>
+          {mapOpen && <HistoryMap data={data} selected={selected} onSelect={setSelected}/>}
+        </div>
+      </>}
+      {selectedEvent && <p role="status">Selected: {selectedEvent.title} · {selectedEvent.startedAt} · M {selectedEvent.measurements.magnitude ?? 'unknown'}</p>}
+      <details><summary>Stored event evidence ({data.events.length})</summary><ul>{data.events.map(event => {
+        const key = `${event.source}:${event.externalId}`;
+        return <li key={key}><a href={safeSourceUrl(event.sourceUrl)}>{event.title}</a> · {event.startedAt} · M {event.measurements.magnitude ?? 'unknown'}
+          {mapOpen && Math.abs(event.latitude) <= 85 && <> <button type="button" aria-pressed={selected === key} onClick={() => setSelected(key)}>Locate {event.title} on map</button></>}
+        </li>;
+      })}</ul></details></section>}
   </>;
 }
-export default function HistoryExplorer() { return <div className="app-shell"><FeatureNav/><main className="feature-page"><SessionGate><HistoryWorkspace/></SessionGate></main></div>; }
+export default function HistoryExplorer() { return <div className="app-shell"><main className="feature-page"><SessionGate><HistoryWorkspace/></SessionGate></main></div>; }

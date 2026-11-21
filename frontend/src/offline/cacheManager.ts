@@ -1,5 +1,7 @@
 import { journeySchema, noticesSchema, type Journey, type Notice } from '../types/journey';
-import { saveCopy, removeCopy } from '../../public/offline-store.js';
+import { api } from '../lib/api/journeyApi';
+import { savedAreasSchema } from '../types/intelligence';
+import { OFFLINE_ACCOUNT_KEY, saveCopy, removeCopy } from '../../public/offline-store.js';
 export const offlineServer = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080').replace(/\/$/, '') || (typeof window !== 'undefined' ? window.location.origin : '');
 async function prepareReader() {
   if (!window.isSecureContext || !('serviceWorker' in navigator)) throw new Error('Offline reading needs HTTPS or localhost and service-worker support.');
@@ -7,15 +9,20 @@ async function prepareReader() {
   let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([navigator.serviceWorker.ready, new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Offline reader is not ready. Stay online and try saving again.')), 15000); })]);
-    const cache = await caches.open('custerra-offline-shell-v3');
+    const cache = await caches.open('custerra-offline-shell-v7');
     // Repair evicted assets even when an existing worker is already active.
-    await cache.addAll(['/offline.html', '/offline-viewer.js', '/offline-store.js', '/offline.css']);
+    await cache.addAll(['/offline.html', '/offline-viewer.js', '/offline-store.js', '/offline-geometry.js', '/offline.css']);
   } finally { clearTimeout(timeout); }
 }
-export async function saveJourneyOffline(journey: Journey, notices: Notice[]) {
+export async function saveJourneyOffline(account: string | undefined, journey: Journey, notices: Notice[]) {
+  if (!account || localStorage.getItem(OFFLINE_ACCOUNT_KEY) !== account) throw new Error('Sign in again before saving an offline copy.');
   const validJourney = journeySchema.parse(journey); const validNotices = noticesSchema.parse(notices);
+  const areaEvidence=await api(`journeys/${journey.id}/areas`,savedAreasSchema).catch(()=>null);
   await prepareReader();
-  try { saveCopy(localStorage, { version: 1, server: offlineServer, savedAt: new Date().toISOString(), journey: validJourney, notices: validNotices }); }
+  try {
+    if (localStorage.getItem(OFFLINE_ACCOUNT_KEY) !== account) throw new Error('The account changed before the copy could be saved.');
+    saveCopy(localStorage, { version: 1, server: offlineServer, savedAt: new Date().toISOString(), journey: { ...validJourney, progress: null }, notices: validNotices, ...(areaEvidence ? { areaEvidence } : {}) });
+  }
   catch (error) {
     if (error instanceof DOMException) throw new Error('Browser storage is unavailable or full. The offline copy was not saved.');
     throw error;

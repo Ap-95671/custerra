@@ -19,10 +19,13 @@ test('registration, session navigation and logout clear private views and offlin
   await page.getByLabel('Password', { exact: true }).fill('Browser-fixture-password');
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await expect(page).toHaveURL(/\/routes$/);
-  await expect(page.getByText('Signed in as browser_user')).toBeVisible();
+  await expect(page.getByRole('link', {name:'Account: browser_user'})).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Saved journeys', exact: true })).toBeVisible();
   await page.evaluate(() => localStorage.setItem('custerra.journey-copies.v1', '[]'));
+  await page.getByRole('link', { name: 'Account: browser_user' }).click();
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.getByText('Signed out. Local journey copies removed.', { exact: true })).toBeVisible();
+  await page.goto('/routes');
   await expect(page.getByRole('heading', { name: 'Keep your saved evidence private.' })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('custerra.journey-copies.v1'))).toBeNull();
   await expect(page.getByRole('heading', { name: 'Saved journeys', exact: true })).toHaveCount(0);
@@ -45,6 +48,9 @@ test('login errors remain on the form; expired session clears saved data without
   await expect(page.getByRole('main').getByRole('alert')).toContainText('Invalid username or password.');
   signedIn = true;await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Saved journeys', exact: true })).toBeVisible();
+  // Let the initial authenticated load finish before expiring the fixture.
+  // Otherwise its in-flight response can remove the button before this click.
+  await expect(page.getByRole('button', { name: 'Reload journeys' })).toBeEnabled();
   expired = true;await page.getByRole('button', { name: 'Reload journeys' }).click();
   await expect(page.getByText('Your session has ended.', { exact: false })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Saved journeys', exact: true })).toHaveCount(0);

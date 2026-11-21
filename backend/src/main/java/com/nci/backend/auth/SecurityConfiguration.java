@@ -19,7 +19,7 @@ public class SecurityConfiguration {
         http.cors(Customizer.withDefaults()).csrf(Customizer.withDefaults())
             .requestCache(cache->cache.disable())
             .authorizeHttpRequests(r->r
-                .requestMatchers("/api/v1/developer/**","/api/v1/auth/me","/api/v1/journeys","/api/v1/journeys/**","/api/v1/history/**","/api/v1/notifications","/api/v1/notifications/**").authenticated()
+                .requestMatchers("/api/v1/locations","/api/v1/locations/**","/api/v1/developer/**","/api/v1/auth/me","/api/v1/journeys","/api/v1/journeys/**","/api/v1/history/**","/api/v1/notifications","/api/v1/notifications/**").authenticated()
                 .anyRequest().permitAll())
             .formLogin(form->form.loginProcessingUrl("/api/v1/auth/login")
                 .successHandler((req,res,a)->{

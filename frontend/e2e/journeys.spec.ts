@@ -45,8 +45,10 @@ test('journey lifecycle exposes scheduler status, checks, failures and deletion'
   await page.getByRole('button', { name: 'Activate journey' }).click();
   await page.getByRole('button', { name: 'Check now' }).click();
   await expect(page.getByRole('region', { name: 'Selected journey' }).getByRole('alert')).toContainText('PROVIDER_TIMEOUT'); expect(checked).toBe(true);
+  await expect(page.getByRole('region', { name: 'Caltrans closure reports' })).toHaveCount(1);
   await page.getByRole('button', { name: 'Pause journey' }).click();
   await expect(page.getByRole('button', { name: 'Check now' })).toBeDisabled();
+  await expect(page.getByRole('region', { name: 'Caltrans closure reports' })).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('button', { name: 'Delete saved journey' }).click();
   await expect(page.getByRole('region', { name: 'Selected journey' })).toHaveCount(0);

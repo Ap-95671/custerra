@@ -34,3 +34,5 @@ export function decodeRoute(encoded: string): [number, number][] {
   if (points.length < 2) throw new Error('Invalid route geometry.');
   return points;
 }
+
+export const alternativesSchema=z.object({routes:z.array(plannedRouteSchema).min(1).max(3),retrievedAt:time,limitations:z.array(z.string())});

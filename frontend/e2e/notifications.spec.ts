@@ -5,19 +5,28 @@ const event={externalId:'fixture',source:'GDACS',title:'Fixture flood advisory',
 const item={id,journeyName:'Fixture journey',notice:{id,journeyId:id,createdAt:time,type:'UPDATED_MATCHING_EVIDENCE',stateVersion:2,evidence:{event,distanceKm:2,segmentIndex:1},explanation:'Fixture change. Informational, not an official warning.'},readAt:null as string|null,deliveries:[{channel:'WEB_PUSH',status:'UNCERTAIN',attempts:1,lastError:'DELIVERY_OUTCOME_UNKNOWN'}]};
 test('notification inbox preserves source evidence, uncertain delivery, preferences and read state on mobile',async({page})=>{
   let current={...item};let preference={enabled:true,pushEnabled:false,hazardTypes:['FLOOD'],minimumSeverity:'UNKNOWN',includeUnknown:true};
-  await page.route('**/api/v1/**',route=>{
+  let finishInbox: () => void = () => {};
+  const pendingInbox = new Promise<void>(resolve => { finishInbox = resolve; });
+  await page.route('**/api/v1/**',async route=>{
     const auth=authFixture(route);if(auth)return auth;
     const path=new URL(route.request().url()).pathname;
     if(path.endsWith('/preferences')) {if(route.request().method()==='PATCH')preference=route.request().postDataJSON();return route.fulfill({json:preference});}
     if(path.endsWith('/push'))return route.fulfill({json:{configured:false,dispatcherEnabled:false,publicKey:null}});
     if(path.endsWith('/read')){current={...current,readAt:time};return route.fulfill({status:204});}
     if(path.endsWith(id))return route.fulfill({json:current});
+    await pendingInbox;
     return route.fulfill({json:[current]});
   });
   await page.setViewportSize({width:390,height:844});await page.goto('/alerts');
   const inbox=page.getByRole('region',{name:'Notification inbox'});
+  try {
+    await expect(inbox.getByRole('status')).toHaveText('Loading notifications…');
+    await expect(inbox.getByText('No notifications on this page.',{exact:false})).toHaveCount(0);
+    await inbox.getByRole('status').screenshot({path:'../tmp/v3/screenshots/notification-loading-390.png'});
+  } finally { finishInbox(); }
   await expect(inbox.getByText('WEB_PUSH: UNCERTAIN',{exact:false})).toBeVisible();
   await expect(inbox.getByRole('link',{name:'Fixture flood advisory'})).toHaveAttribute('href','https://www.gdacs.org/');
+  await page.getByText('Notification preferences & browser delivery',{exact:true}).click();
   await expect(page.getByRole('button',{name:'Enable this browser'})).toBeDisabled();
   await page.getByLabel('Include evidence with UNKNOWN severity').uncheck();
   await page.getByRole('button',{name:'Save preferences'}).click();
@@ -33,6 +42,7 @@ test('push link loads its specific owned notice and explains unavailable setup',
   });
   await page.goto(`/alerts?notice=${id}`);
   await expect(page.getByRole('region',{name:'Selected notification'}).getByRole('heading',{name:'Fixture journey'})).toBeVisible();
+  await page.getByText('Notification preferences & browser delivery',{exact:true}).click();
   await expect(page.getByText('Web push is unavailable',{exact:false})).toBeVisible();
   await expect(page.getByRole('region',{name:'Notification inbox'}).getByText('No notifications on this page.',{exact:false})).toBeVisible();
 });

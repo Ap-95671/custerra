@@ -1,3 +1,5 @@
+Current V2 request controls, source freshness, revision ledger, full category coverage and November 1, 2026 terms review: [Milestone 23](milestone-23.md). Earlier milestone sections below describe their original implementation; the V2 section supersedes their no-cache/no-backoff descriptions.
+
 # Data sources
 
 The first adapter uses the [official USGS earthquake catalog API](https://earthquake.usgs.gov/fdsnws/event/1/) with its [GeoJSON schema](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php). No scraping or API key is involved. Source metadata is centralized in `UsgsEarthquakeProvider.metadata()`; transport configuration is bound through validated `UsgsProperties`.

@@ -1,2 +1,2 @@
-import { notFound } from "next/navigation";
-export default function PlannedPage() { notFound(); }
+import { redirect } from 'next/navigation';
+export default function ProfilePage() { redirect('/settings'); }

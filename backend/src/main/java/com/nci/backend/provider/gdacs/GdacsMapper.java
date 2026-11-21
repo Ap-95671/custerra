@@ -30,9 +30,16 @@ public class GdacsMapper {
         if (end != null && end.isBefore(start)) throw new IllegalArgumentException("Invalid event interval");
         String url = required(item, null, "link");
         var uri = URI.create(url);
-        if (!"https".equals(uri.getScheme()) || !("www.gdacs.org".equals(uri.getHost()) || "gdacs.org".equals(uri.getHost()))
+        if (!("www.gdacs.org".equals(uri.getHost()) || "gdacs.org".equals(uri.getHost()))
                 || uri.getUserInfo() != null || uri.getPort() != -1) throw new IllegalArgumentException("Invalid evidence URL");
         var attrs = new HashMap<String, String>();
+        // The current HTTPS RSS feed publishes legacy HTTP report citations.
+        // Upgrade only the known report endpoint; never fetch HTTP or follow a redirect.
+        if ("http".equals(uri.getScheme()) && "/report.aspx".equals(uri.getRawPath())) {
+            attrs.put("originalSourceUrl", url);
+            attrs.put("sourceUrlNormalization", "GDACS_REPORT_HTTP_TO_HTTPS");
+            url = "https" + url.substring(4);
+        } else if (!"https".equals(uri.getScheme())) throw new IllegalArgumentException("Invalid evidence URL");
         for (var key : List.of("eventtype", "eventid", "episodeid", "alertlevel", "country", "iso3", "bbox", "version", "iscurrent")) {
             var value = text(item, GDACS, key);
             if (!value.isBlank()) attrs.put(key, value);

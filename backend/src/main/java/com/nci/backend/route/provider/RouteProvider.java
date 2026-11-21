@@ -7,6 +7,7 @@ import com.nci.backend.provider.model.ProviderMetadata;
 
 public interface RouteProvider {
     RoutePlan route(RoutePoint origin, RoutePoint destination, TravelMode mode);
+    default List<RoutePlan> alternatives(RoutePoint origin,RoutePoint destination,TravelMode mode){return List.of(route(origin,destination,mode));}
     enum TravelMode { DRIVING }
     /** Full provider geometry stays encoded at API boundaries; decoded points are transient assessment inputs. */
     record RoutePlan(String geometry, int precision, List<RoutePoint> points, double distanceKm,

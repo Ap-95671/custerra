@@ -11,7 +11,7 @@ async function intercept(page: Page, failRisk = false, empty = false) {
   await page.route('**/api/v1/**', route => route.fulfill({ status: route.request().url().includes('/risk/') && failRisk ? 502 : 200, contentType: 'application/json', body: JSON.stringify(route.request().url().includes('/weather/') ? weather : route.request().url().includes('/risk/') ? risk : empty ? { ...nearby, items: [] } : nearby) }));
 }
 test('location selection, map details, layer toggle and unknown score', async ({ page }) => {
-  await intercept(page); await page.goto('/');
+  await intercept(page); await page.goto('/map');
   await expect(page.getByText('Select a point to begin')).toBeVisible();
   await page.getByRole('button', { name: 'Manali' }).click();
   await expect(page.getByRole('button', { name: event.title })).toBeVisible();
@@ -24,14 +24,14 @@ test('location selection, map details, layer toggle and unknown score', async ({
   await expect(page.getByRole('button', { name: event.title })).toBeVisible();
 });
 test('independent risk failure preserves observations and exposes retry', async ({ page }) => {
-  await intercept(page, true); await page.goto('/');
+  await intercept(page, true); await page.goto('/map');
   await page.getByRole('button', { name: 'Manali' }).click();
   await expect(page.getByRole('button', { name: event.title })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Retry assessment' })).toBeVisible();
   await expect(page.getByText('The hazard provider is unavailable. Please try again.')).toBeVisible();
 });
 test('empty is not safe; mobile has no horizontal overflow', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 }); await intercept(page, false, true); await page.goto('/');
+  await page.setViewportSize({ width: 390, height: 844 }); await intercept(page, false, true); await page.goto('/map');
   await page.getByRole('button', { name: 'Manali' }).click();
   await expect(page.getByText('No matching hazards in the retrieved evidence.')).toBeVisible();
   await expect(page.getByText('This does not establish safety or rule out other hazards.')).toBeVisible();
@@ -43,10 +43,11 @@ test('new selection cannot be overwritten by delayed prior request', async ({ pa
     if (old) await new Promise(resolve => setTimeout(resolve, 700));
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(route.request().url().includes('/weather/') ? { ...weather, temperatureC: old ? 99 : 12.5 } : route.request().url().includes('/risk/') ? risk : { ...nearby, items: [{ event: { ...event, title: old ? 'Old result' : 'Latest result' }, distanceKm: 5 }] }) }).catch(() => {});
   });
-  await page.goto('/'); await page.getByRole('button', { name: 'Manali' }).click(); await page.getByRole('button', { name: 'Tokyo' }).click();
+  await page.goto('/map'); await page.getByRole('button', { name: 'Manali' }).click(); await page.getByRole('button', { name: 'Tokyo' }).click();
   await expect(page.getByRole('button', { name: 'Latest result' })).toBeVisible();
   await page.waitForTimeout(900);
   await expect(page.getByRole('button', { name: 'Old result' })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Weather', exact: true }).click();
   await expect(page.getByText('12.5 °C')).toBeVisible();
   await expect(page.getByText('99.0 °C')).toHaveCount(0);
 });
@@ -57,7 +58,7 @@ test('loading state precedes numeric activity and truncation warnings', async ({
     await pending;
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(route.request().url().includes('/weather/') ? weather : route.request().url().includes('/risk/') ? { ...risk, hazards: [{ ...risk.hazards[0], riskLevel: 'MODERATE', score: 34, confidence: 'LOW' }] } : { ...nearby, truncated: true }) });
   });
-  await page.goto('/'); await page.getByRole('button', { name: 'Manali' }).click();
+  await page.goto('/map'); await page.getByRole('button', { name: 'Manali' }).click();
   await expect(page.getByText('Assessing recent activity…')).toBeVisible();
   await expect(page.getByText('Retrieving hazard evidence…')).toBeVisible();
   release();
@@ -68,20 +69,21 @@ test('loading state precedes numeric activity and truncation warnings', async ({
 test('clicking map chooses a location; clicking an event does not refetch', async ({ page }) => {
   let requests = 0;
   await page.route('**/api/v1/**', route => { if (route.request().url().includes('/auth/')) return route.fulfill({ status: 401, json: {} }); requests++; return route.fulfill({ contentType: 'application/json', body: JSON.stringify(route.request().url().includes('/weather/') ? weather : route.request().url().includes('/risk/') ? risk : nearby) }); });
-  await page.goto('/');
-  await page.locator('.map-canvas').click({ position: { x: 150, y: 180 } });
+  await page.goto('/map');
+  await page.locator('.map-canvas').click({ position: { x: 430, y: 180 } });
   await expect(page.getByRole('button', { name: event.title })).toBeVisible();
-  expect(requests).toBe(3);
+  expect(requests).toBe(4);
   await page.getByRole('button', { name: event.title }).click();
   await expect(page.locator('.leaflet-popup')).toBeVisible();
-  await page.locator('.leaflet-interactive').last().click({ force: true });
-  expect(requests).toBe(3);
+  await page.locator('.hazard-marker.selected').click();
+  expect(requests).toBe(4);
 });
 
 test('weather displays interval units and missing/stale values explicitly', async ({ page }) => {
   await intercept(page);
   await page.route('**/api/v1/weather/**', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ...weather, rainMm: null, partial: true, stale: true }) }));
-  await page.goto('/'); await page.getByRole('button', { name: 'Manali' }).click();
+  await page.goto('/map'); await page.getByRole('button', { name: 'Manali' }).click();
+  await page.getByRole('tab', { name: 'Weather', exact: true }).click();
   const panel = page.getByRole('region', { name: 'Weather context' });
   await expect(panel.getByText('12.5 °C')).toBeVisible();
   await expect(panel.getByText('Unavailable', { exact: true })).toBeVisible();
@@ -93,8 +95,9 @@ test('weather displays interval units and missing/stale values explicitly', asyn
 test('weather failure preserves hazard data and weather retry recovers', async ({ page }) => {
   await intercept(page);
   await page.route('**/api/v1/weather/**', route => route.fulfill({ status: 504, body: '' }));
-  await page.goto('/'); await page.getByRole('button', { name: 'Manali' }).click();
+  await page.goto('/map'); await page.getByRole('button', { name: 'Manali' }).click();
   await expect(page.getByRole('button', { name: event.title })).toBeVisible();
+  await page.getByRole('tab', { name: 'Weather', exact: true }).click();
   await expect(page.getByText('The weather provider timed out. Please try again.')).toBeVisible();
   await page.unroute('**/api/v1/weather/**');
   await page.getByRole('button', { name: 'Retry weather' }).click();
@@ -109,7 +112,7 @@ test('multi-hazard layers preserve evidence, distinguish advisories and show par
     coverageStatus: 'PARTIAL', providerStatuses: [{ provider: 'USGS', coverageStatus: 'UNAVAILABLE', retrievedAt: null, limitations: ['PROVIDER_TIMEOUT'] }, { provider: 'FIRMS', coverageStatus: 'COMPLETE', retrievedAt: timestamp, limitations: [] }, { provider: 'GDACS', coverageStatus: 'PARTIAL', retrievedAt: timestamp, limitations: ['RECENT_FEED_ONLY'] }],
     items: [{ event: thermal, distanceKm: 5 }, { event: flood, distanceKm: 7 }],
   }) }));
-  await page.goto('/'); await page.getByRole('button', { name: 'Manali' }).click();
+  await page.goto('/map'); await page.getByRole('button', { name: 'Manali' }).click();
   await expect(page.getByText('USGS: UNAVAILABLE')).toBeVisible();
   await expect(page.getByText('Selected source coverage: PARTIAL')).toBeVisible();
   await page.getByRole('button', { name: thermal.title }).click();
@@ -130,7 +133,7 @@ test('multi-hazard layers preserve evidence, distinguish advisories and show par
 test('all sources unavailable is never displayed as an empty successful search', async ({ page }) => {
   await intercept(page);
   await page.route('**/api/v1/hazards/nearby**', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ...nearby, items: [], coverageStatus: 'UNAVAILABLE', providerStatuses: [{ provider: 'FIRMS', coverageStatus: 'UNAVAILABLE', retrievedAt: null, limitations: ['NOT_CONFIGURED'] }] }) }));
-  await page.goto('/'); await page.getByRole('button', { name: 'Manali' }).click();
+  await page.goto('/map'); await page.getByRole('button', { name: 'Manali' }).click();
   await expect(page.getByText('Hazard data is unavailable. No assessment of hazard absence can be made.')).toBeVisible();
   await expect(page.getByText('No matching hazards in the retrieved evidence.')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Retry observations' })).toBeVisible();
@@ -139,7 +142,7 @@ test('all sources unavailable is never displayed as an empty successful search',
 test('multi-hazard assessment presents thermal context without converting overall unknown to low', async ({ page }) => {
   await intercept(page);
   await page.route('**/api/v1/risk/multi-hazard**', route => route.fulfill({ json: { ...risk, dominantHazards: ['WILDFIRE'], coverageStatus: 'PARTIAL', weatherStatus: 'AVAILABLE', providerStatuses: [{ provider: 'FIRMS', coverageStatus: 'COMPLETE', retrievedAt: timestamp, limitations: [] }], hazards: [...risk.hazards, { hazardType: 'WILDFIRE', scope: 'RECENT_THERMAL_DETECTION_PROXIMITY', modelVersion: 'thermal-proximity-v1-experimental', riskLevel: 'HIGH', score: 60, confidence: 'LOW', explanation: 'Experimental thermal proximity, not wildfire risk or a prediction.', limitations: ['THERMAL_ANOMALIES_NOT_CONFIRMED_WILDFIRES'], factors: [], environmentalContext: [{ code: 'MODELED_WIND_CONTEXT', value: 30, unit: 'km/h', source: 'OPEN_METEO', validAt: timestamp, retrievedAt: timestamp, explanation: 'Context only; no score change or spread inference.' }] }] } }));
-  await page.goto('/'); await page.getByRole('button', { name: 'Manali' }).click();
+  await page.goto('/map'); await page.getByRole('button', { name: 'Manali' }).click();
   await expect(page.getByText('Thermal detection proximity', { exact: true })).toBeVisible();
   await expect(page.locator('.hazard-score')).toContainText('60/100');
   await expect(page.locator('.overall strong')).toHaveText('UNKNOWN');
