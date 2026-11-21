@@ -35,7 +35,7 @@ class NotificationPersistenceTests {
     @BeforeEach void setup() {
         owner=UUID.randomUUID();jdbc.update("insert into user_account(id,username,password_hash) values (?,?,?)",owner,"push_"+owner.toString().replace("-",""),"unusable");
         when(current.id()).thenReturn(owner);when(push.configured()).thenReturn(true);
-        journey=journeys.create(new MonitoringRequest("Fixture journey",ROUTE)).id();
+        journey=journeys.create(new MonitoringRequest("Fixture journey",ROUTE)).id();journeys.status(journey,"ACTIVE");
         var keys=PushFixtures.keys();subscription=subscriptions.save(owner,"https://fcm.googleapis.com/fcm/send/"+UUID.randomUUID(),keys.publicKey(),keys.auth());
         var defaults=NotificationPreference.defaults();alerts.preferences(owner,new NotificationPreference(true,true,defaults.hazardTypes(),defaults.minimumSeverity(),true));
         notice=new JourneyNotice(UUID.randomUUID(),journey,Instant.now(),"NEW_MATCHING_OBSERVATION",assessment(false,"fixture").matches().getFirst(),"Fixture only. Not an official warning.",1);
@@ -92,12 +92,42 @@ class NotificationPersistenceTests {
         try(var workers=Executors.newFixedThreadPool(2)) { var first=workers.submit(dispatcher::dispatch);var second=workers.submit(dispatcher::dispatch);first.get(10,TimeUnit.SECONDS);second.get(10,TimeUnit.SECONDS); }
         assertThat(state()).isEqualTo("SENT");verify(push,times(1)).send(any(),anyString(),anyString());
     }
+    @Test @EnabledIfEnvironmentVariable(named="CUSTERRA_LOAD_TESTS",matches="true")
+    void boundedConcurrentDispatchLoadUsesSyntheticGatewayOnly() throws Exception {
+        for(int i=0;i<20;i++)notices.create(new JourneyNotice(UUID.randomUUID(),journey,Instant.now(),"NEW_MATCHING_OBSERVATION",notice.evidence(),"Synthetic load fixture",i+1));
+        when(push.send(any(),anyString(),anyString())).thenAnswer(call->{Thread.sleep(5);return PushGateway.Result.sent();});
+        long start=System.nanoTime();
+        try(var workers=Executors.newFixedThreadPool(4)) {
+            var jobs=new ArrayList<Future<?>>();for(int i=0;i<4;i++)jobs.add(workers.submit(dispatcher::dispatch));
+            for(var job:jobs)job.get(15,TimeUnit.SECONDS);
+        }
+        verify(push,times(20)).send(any(),anyString(),anyString());
+        assertThat(jdbc.queryForObject("select count(*) from notification_delivery d join notification_item n on n.id=d.notification_id where n.journey_id=? and d.status='SENT'",Integer.class,journey)).isEqualTo(20);
+        java.nio.file.Files.writeString(java.nio.file.Path.of("target/notification-load-results.json"),new tools.jackson.databind.ObjectMapper().writeValueAsString(Map.of("deliveries",20,"workers",4,"duplicates",0,"failures",0,"simulatedGatewayDelayMs",5,"wallMs",(System.nanoTime()-start)/1e6)));
+    }
     @Test void subscriptionOwnershipBoundsAndRemovalPreventQueuedDelivery() {
         var keys=PushFixtures.keys();
         assertThatThrownBy(()->subscriptions.save(owner,"https://127.0.0.1/private",keys.publicKey(),keys.auth())).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
         assertThatThrownBy(()->subscriptions.save(owner,"https://fcm.googleapis.com/fixture","bad","bad")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
         notices.create(notice);subscriptions.remove(UUID.randomUUID(),subscription);assertThat(state()).isEqualTo("PENDING");
         subscriptions.remove(owner,subscription);assertThat(state()).isEqualTo("CANCELLED");dispatcher.dispatch();verify(push,never()).send(any(),anyString(),anyString());
+    }
+    @Test void pausingJourneyCancelsQueuedPushBeforeDispatch() {
+        notices.create(notice);journeys.status(journey,"PAUSED");dispatcher.dispatch();
+        assertThat(state()).isEqualTo("CANCELLED");verify(push,never()).send(any(),anyString(),anyString());
+    }
+    @Test void restartedDispatcherRecoversDurableLeaseWithoutDuplicateSend() {
+        notices.create(notice);tx.executeWithoutResult(status->deliveries.claim(Instant.now()));
+        jdbc.update("update notification_delivery set lease_until=now()-interval '1 second' where notification_id=?",notice.id());
+        var restarted=new NotificationDispatcher(deliveries,alerts,subscriptions,push,tx,Clock.systemUTC(),new tools.jackson.databind.ObjectMapper());
+        restarted.dispatch();assertThat(state()).isEqualTo("UNCERTAIN");verify(push,never()).send(any(),anyString(),anyString());
+    }
+    @Test void multipleDevicesGetDistinctDeliveriesAndExpiredNoticesAreCancelled() {
+        var keys=PushFixtures.keys();subscriptions.save(owner,"https://fcm.googleapis.com/fcm/send/"+UUID.randomUUID(),keys.publicKey(),keys.auth());
+        var old=new JourneyNotice(notice.id(),journey,Instant.now().minusSeconds(90000),notice.type(),notice.evidence(),notice.explanation(),notice.stateVersion());
+        notices.create(old);dispatcher.dispatch();
+        assertThat(alerts.find(owner,notice.id()).orElseThrow().deliveries()).hasSize(2).allMatch(d->d.status().equals("CANCELLED"));
+        verify(push,never()).send(any(),anyString(),anyString());
     }
     private String state(){return jdbc.queryForObject("select status from notification_delivery where notification_id=?",String.class,notice.id());}
     private int attempts(){return jdbc.queryForObject("select count(*) from notification_attempt a join notification_delivery d on a.delivery_id=d.id where d.notification_id=?",Integer.class,notice.id());}

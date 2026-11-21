@@ -14,6 +14,6 @@ export default function RiskSummary({ risk, hasQuery, onRetry }: { risk: Result<
           {risk.data?.dominantHazards && <p>Highest available indicator category: {risk.data.dominantHazards.join(', ') || 'None scorable'}. Unknown hazard categories are not included as zero.</p>}
           {risk.data?.providerStatuses && <details><summary>Assessment source coverage</summary><ul>{risk.data.providerStatuses.map(s => <li key={s.provider}>{s.provider}: {s.coverageStatus}</li>)}</ul><p>Weather context: {risk.data.weatherStatus ?? 'UNKNOWN'}</p></details>}
           {risk.data?.sourceResultsTruncated && <p className="notice">One or more sources were truncated. Affected hazard indicators are withheld.</p>}
-          <div className="unassessed"><h3>Coverage gaps</h3><p>Flood, landslide, cyclone and other unsupported hazards remain UNKNOWN. Thermal proximity is not confirmed wildfire risk. Geographical relevance is unknown.</p></div>
+          <div className="unassessed"><h3>Coverage gaps</h3><p>Flood, landslide, cyclone and other uncalibrated hazard risk models remain UNKNOWN. Official source alerts are a separate evidence layer. Thermal proximity is not confirmed wildfire risk. Geographical relevance is unknown.</p></div>
         </aside>);
 }

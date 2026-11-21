@@ -1,8 +1,8 @@
 import type { HazardItem } from '../../types/hazard';
 export const hazardLayers = {
-  earthquakes: { label: 'Earthquake observations', symbol: '●', color: '#935435' },
-  thermal: { label: 'Fire / Thermal Anomalies', symbol: '▲', color: '#a74314' },
-  global: { label: 'Global Disaster Events', symbol: '◆', color: '#31599b' },
+  earthquakes: { label: 'Earthquake observations', symbol: '●', color: 'var(--hazard-quake)' },
+  thermal: { label: 'Fire / Thermal Anomalies', symbol: '▲', color: 'var(--hazard-thermal)' },
+  global: { label: 'Global Disaster Events', symbol: '◆', color: 'var(--hazard-advisory)' },
 } as const;
 export type HazardLayer = keyof typeof hazardLayers;
 export function eventLayer(event: HazardItem['event']): HazardLayer {

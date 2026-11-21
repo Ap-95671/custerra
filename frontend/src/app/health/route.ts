@@ -1,1 +1,3 @@
-export function GET(){return Response.json({status:'UP',service:'Custerra web'});}
+import { webReadiness } from '../../lib/server/webReadiness';
+export const dynamic = 'force-dynamic';
+export async function GET() { return webReadiness(); }

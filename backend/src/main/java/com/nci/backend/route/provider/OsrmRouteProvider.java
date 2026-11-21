@@ -29,32 +29,26 @@ public class OsrmRouteProvider implements RouteProvider {
     record Payload(String code,List<Path> routes) {}
     @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown=true)
     record Path(String geometry,Double distance,Double duration) {}
-    @Override public RoutePlan route(RoutePoint origin,RoutePoint destination,TravelMode mode) {
-        if(mode!=TravelMode.DRIVING) throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
-        var uri=UriComponentsBuilder.fromUri(properties.routingUrl())
-                .pathSegment(origin.longitude()+","+origin.latitude()+";"+destination.longitude()+","+destination.latitude())
-                .queryParam("overview","full").queryParam("geometries","polyline6").queryParam("alternatives",false)
-                .queryParam("steps",false).build().encode().toUri();
-        var bytes=ProviderHttp.get(client,uri,"application/json",1_000_000);
+    @Override public RoutePlan route(RoutePoint origin,RoutePoint destination,TravelMode mode) { return fetch(origin,destination,mode,false).getFirst(); }
+    @Override public List<RoutePlan> alternatives(RoutePoint origin,RoutePoint destination,TravelMode mode) { return fetch(origin,destination,mode,true); }
+    private List<RoutePlan> fetch(RoutePoint origin,RoutePoint destination,TravelMode mode,boolean alternatives) {
+        if(mode!=TravelMode.DRIVING)throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        var uri=UriComponentsBuilder.fromUri(properties.routingUrl()).pathSegment(origin.longitude()+","+origin.latitude()+";"+destination.longitude()+","+destination.latitude())
+                .queryParam("overview","full").queryParam("geometries","polyline6").queryParam("alternatives",alternatives).queryParam("steps",false).build().encode().toUri();
+        var bytes=ProviderHttp.get(client,uri,"application/json",3_000_000);
         try {
             var payload=json.readValue(bytes,Payload.class);
-            if(payload!=null && "NoRoute".equals(payload.code())) throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT);
-            if(payload==null || !"Ok".equals(payload.code()) || payload.routes()==null || payload.routes().size()!=1)
-                throw new IllegalArgumentException("Invalid route response");
-            var path=payload.routes().getFirst();
-            if(path.distance()==null || path.duration()==null || !Double.isFinite(path.distance()) || !Double.isFinite(path.duration())
-                    || path.distance()<1 || path.duration()<0) throw new IllegalArgumentException("Invalid route metadata");
-            if(path.distance()>900_000) throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT);
-            var points=EncodedRoute.decode(path.geometry());
-            var geo=new GeoDistance(); var first=points.getFirst(); var last=points.getLast();
-            // Reject excessive provider snapping; never silently assess a different origin/destination.
-            if(geo.kilometers(origin.latitude(),origin.longitude(),first.latitude(),first.longitude())>5
-                    || geo.kilometers(destination.latitude(),destination.longitude(),last.latitude(),last.longitude())>5)
-                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT);
-            return new RoutePlan(path.geometry(),6,points,path.distance()/1000,path.duration(),new ProviderMetadata("OSRM",
-                    "OSRM / OpenStreetMap contributors", "https://project-osrm.org/docs/v5.24.0/api/",
-                    "https://routing.openstreetmap.de/about.html", "On-demand driving geometry; duration excludes hazard impacts and live traffic."),clock.instant());
-        } catch(ResponseStatusException e) { throw e; }
-        catch(RuntimeException e) { throw new ProviderException(false); }
+            if(payload!=null&&"NoRoute".equals(payload.code()))throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT);
+            if(payload==null||!"Ok".equals(payload.code())||payload.routes()==null||payload.routes().isEmpty()||payload.routes().size()>(alternatives?3:1))throw new IllegalArgumentException("Invalid route response");
+            var results=new ArrayList<RoutePlan>();var geometries=new HashSet<String>();
+            for(var path:payload.routes()){
+                if(path.distance()==null||path.duration()==null||!Double.isFinite(path.distance())||!Double.isFinite(path.duration())||path.distance()<1||path.duration()<0)throw new IllegalArgumentException("Invalid route metadata");
+                if(path.distance()>900_000)throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT);
+                var points=EncodedRoute.decode(path.geometry());var geo=new GeoDistance();var first=points.getFirst();var last=points.getLast();
+                if(geo.kilometers(origin.latitude(),origin.longitude(),first.latitude(),first.longitude())>5||geo.kilometers(destination.latitude(),destination.longitude(),last.latitude(),last.longitude())>5)throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT);
+                if(geometries.add(path.geometry()))results.add(new RoutePlan(path.geometry(),6,points,path.distance()/1000,path.duration(),new ProviderMetadata("OSRM","OSRM / OpenStreetMap contributors","https://project-osrm.org/docs/v5.24.0/api/","https://routing.openstreetmap.de/about.html","On-demand driving geometry; duration excludes hazard impacts and live traffic."),clock.instant()));
+            }
+            return List.copyOf(results);
+        }catch(ResponseStatusException e){throw e;}catch(RuntimeException e){throw new ProviderException(false);}
     }
 }

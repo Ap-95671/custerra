@@ -14,11 +14,17 @@ public class NearbyHazardService {
     private final List<HazardProvider> providers;
     private final GeoDistance distance;
     private final Clock clock;
+    private final HazardProviderAccess access;
 
     public NearbyHazardService(List<HazardProvider> providers, GeoDistance distance, Clock clock) {
+        this(providers,distance,clock,null);
+    }
+    @org.springframework.beans.factory.annotation.Autowired
+    public NearbyHazardService(List<HazardProvider> providers, GeoDistance distance, Clock clock,HazardProviderAccess access) {
         this.providers = List.copyOf(providers);
         this.distance = distance;
         this.clock = clock;
+        this.access = access;
     }
 
     /** Existing scientific/monitoring contracts remain restricted to USGS until their own milestones. */
@@ -49,10 +55,10 @@ public class NearbyHazardService {
         boolean truncated = false;
         for (var provider : selected) {
             try {
-                var result = provider.fetch(query);
+                var result = access==null?provider.fetch(query):access.fetch(provider,query);
                 truncated |= result.truncated();
                 statuses.add(new ProviderStatus(provider.source(), result.coverageStatus(),
-                        result.coverageStatus() == CoverageStatus.UNAVAILABLE ? null : clock.instant(), result.limitations()));
+                        result.coverageStatus() == CoverageStatus.UNAVAILABLE ? null : result.retrievedAt()==null?clock.instant():result.retrievedAt(), result.limitations()));
                 for (var event : result.events()) {
                     // Identity is source + source event ID. Never merge across sources by proximity.
                     String key = event.source() + ":" + event.externalId();

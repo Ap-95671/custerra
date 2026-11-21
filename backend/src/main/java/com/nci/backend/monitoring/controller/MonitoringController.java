@@ -22,10 +22,17 @@ public class MonitoringController {
     public record StatusRequest(@NotNull String status) {}
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
     public MonitoringResponse create(@Valid @RequestBody MonitoringRequest request) { return service.create(request); }
+    @PostMapping("/generated") @ResponseStatus(HttpStatus.CREATED)
+    public MonitoringResponse generated(@Valid @RequestBody GeneratedJourneyRequest request) { return service.createGenerated(request); }
+    @PutMapping("/{id}/progress")
+    public MonitoringResponse progress(@PathVariable UUID id,@Valid @RequestBody JourneyProgress.Update request) { return service.progress(id,request); }
+    @DeleteMapping("/{id}/progress")
+    public MonitoringResponse clearProgress(@PathVariable UUID id) { return service.clearProgress(id); }
     @GetMapping public List<MonitoringResponse> list(@RequestParam(defaultValue="0") int page) { return service.list(page); }
     @GetMapping("/{id}") public MonitoringResponse get(@PathVariable UUID id) { return service.get(id); }
     @PatchMapping("/{id}") public MonitoringResponse status(@PathVariable UUID id, @Valid @RequestBody StatusRequest request) { return service.status(id, request.status()); }
     @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT) public void delete(@PathVariable UUID id) { service.delete(id); }
     @PostMapping("/{id}/check") public MonitoringResponse check(@PathVariable UUID id) { return service.check(id); }
+    @GetMapping("/{id}/evidence-history") public List<com.nci.backend.monitoring.repository.MonitoredTripRepository.Revision> revisions(@PathVariable UUID id,@RequestParam(defaultValue="0") int page){return service.revisions(id,page);}
     @GetMapping("/{id}/notices") public List<JourneyNotice> notices(@PathVariable UUID id, @RequestParam(defaultValue="0") int page) { return service.notices(id, page); }
 }

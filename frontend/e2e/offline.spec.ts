@@ -1,3 +1,4 @@
+import {savedArea,alert} from './intelligenceFixture';
 import { authFixture } from './authFixture';
 import { test, expect } from '@playwright/test';
 test.beforeEach(async ({ page }) => { await page.route('**/api/v1/auth/**', route => authFixture(route) || route.fallback()); });
@@ -10,6 +11,7 @@ test('explicit offline save survives disconnected navigation and reload without 
     const auth = authFixture(r); if (auth) return auth;
     if (r.request().method() !== 'GET') mutations.push(r.request().method());
     const path = new URL(r.request().url()).pathname;
+    if(path.endsWith('/areas'))return r.fulfill({json:savedArea});
     return r.fulfill({ json: path.endsWith('/monitoring') ? { schedulerEnabled: false, intervalMs: 300000 } : path.endsWith('/notices') ? [] : path.endsWith(id) ? journey : [journey] });
   });
   await page.goto('/routes'); await page.getByRole('button', { name: 'Offline test journey · ACTIVE' }).click();
@@ -20,15 +22,18 @@ test('explicit offline save survives disconnected navigation and reload without 
   const offline = await context.newPage(); await offline.goto('/routes');
   await expect(offline.getByRole('heading', { name: 'Offline journey copies' })).toBeVisible();
   await expect(offline.getByRole('heading', { name: 'Offline test journey' })).toBeVisible();
+  await expect(offline.getByRole('img', { name: /Saved route shape/ })).toBeVisible();
   await expect(offline.getByText('Last saved check error: PROVIDER_TIMEOUT', { exact: false })).toBeVisible();
   await expect(offline.getByText('Incomplete catalog coverage:', { exact: false })).toBeVisible();
   await expect(offline.getByRole('button', { name: 'Check now' })).toHaveCount(0);
+  await expect(offline.getByText(alert.title,{exact:false})).toBeVisible();
+  await expect(offline.getByText('Original segments 1',{exact:false})).toContainText('12.50 km');
   await offline.reload(); await expect(offline.getByRole('heading', { name: 'Offline test journey' })).toBeVisible();
   await offline.setViewportSize({ width: 390, height: 844 });
   expect(await offline.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await offline.screenshot({ path: '/private/tmp/custerra-m11/offline-mobile.png', fullPage: true });
-  const cached = await offline.evaluate(async () => { const cache = await caches.open('custerra-offline-shell-v3'); return (await cache.keys()).map(r => new URL(r.url).pathname).sort(); });
-  expect(cached).toEqual(['/offline-store.js', '/offline-viewer.js', '/offline.css', '/offline.html']);
+  await offline.screenshot({ path: test.info().outputPath('offline-mobile.png'), fullPage: true });
+  const cached = await offline.evaluate(async () => { const cache = await caches.open('custerra-offline-shell-v7'); return (await cache.keys()).map(r => new URL(r.url).pathname).sort(); });
+  expect(cached).toEqual(['/offline-geometry.js', '/offline-store.js', '/offline-viewer.js', '/offline.css', '/offline.html']);
   await offline.getByRole('button', { name: 'Remove this offline copy' }).click();
   await expect(offline.getByText('No valid offline copies.', { exact: false })).toBeVisible();
   await context.setOffline(false); await offline.goto('/routes');

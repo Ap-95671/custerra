@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { readCopies, saveCopy, removeCopy, STORAGE_KEY, MAX_AGE_MS } from '../public/offline-store.js';
+import { bindOfflineAccount, clearOfflineAccount, readCopies, saveCopy, removeCopy, OFFLINE_ACCOUNT_KEY, STORAGE_KEY, MAX_AGE_MS } from '../public/offline-store.js';
 const now = Date.now();
 function storage() { const values = new Map<string, string>(); return { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } }; }
 function copy(index = 1, server = 'http://localhost:8080') { return { version: 1, savedAt: new Date(now).toISOString(), server, journey: { id: `11111111-1111-4111-8111-${String(index).padStart(12, '0')}`, name: 'Saved journey', status: 'ACTIVE', lastAttemptAt: null, lastCheckedAt: null, lastError: null, route: { points: [{ latitude: 0, longitude: 0 }, { latitude: 0, longitude: 1 }], corridorKm: 25, days: 7, minMagnitude: 4 }, assessment: null }, notices: [] }; }
@@ -24,4 +24,54 @@ test('limits do not evict other journeys or silently swallow quota failures', ()
   const full = { ...storage(), setItem: () => { throw new Error('Quota exceeded'); } };
   expect(() => saveCopy(full, copy(), now)).toThrow('Quota exceeded');
   expect(() => saveCopy(storage(), { ...copy(), journey: { ...copy().journey, name: 'x'.repeat(600000) } }, now)).toThrow('storage limit');
+});
+
+test('generated geometry is compact, lossless and never retains shared coordinates', () => {
+  const store=storage();
+  const value={...copy(),journey:{...copy().journey,progress:{position:{latitude:42,longitude:42}},generatedGeometry:{encodedPolyline:'???_c`|@',version:1,originName:'A',destinationName:'B'}}};
+  saveCopy(store,value,now);
+  expect(store.getItem(STORAGE_KEY)).toContain('polyline6');
+  expect(JSON.parse(store.getItem(STORAGE_KEY)!)[0].journey.progress).toBeNull();
+  expect(readCopies(store,now)[0].journey.route.points).toEqual(value.journey.route.points);
+  const broken=JSON.parse(store.getItem(STORAGE_KEY)!);broken[0].journey.route.encodedPoints='!';store.setItem(STORAGE_KEY,JSON.stringify(broken));
+  expect(readCopies(store,now)).toEqual([]);
+});
+
+test('a maximum-vertex generated route and remaining assessment round-trip within the offline budget', () => {
+  const store=storage();
+  const points=Array.from({length:20000},(_,i)=>({latitude:0,longitude:i/1000000}));
+  const route={...copy().journey.route,points};
+  const value={...copy(),journey:{...copy().journey,route,
+    generatedGeometry:{encodedPolyline:'??'+'?A'.repeat(19999),version:1,originName:'A',destinationName:'B'},
+    assessment:{overallRisk:'UNKNOWN',assessedAt:new Date(now).toISOString(),explanation:'Synthetic maximum-size fixture',truncated:false,lengthKm:2.23,matches:[],query:{...route,points:points.slice(19500)}}}};
+  saveCopy(store,value,now);
+  const packed=JSON.parse(store.getItem(STORAGE_KEY)!)[0];
+  expect(packed.journey.assessment.query.pointRange).toEqual({start:19500,count:500});
+  expect(store.getItem(STORAGE_KEY)!.length*2).toBeLessThan(200000);
+  const restored=readCopies(store,now)[0];
+  expect(restored.journey.route.points).toEqual(points);
+  expect(restored.journey.assessment.query.points).toEqual(points.slice(19500));
+});
+
+test('saved source-area evidence retains timestamps and rejects mismatched owners or malformed geometry results',()=>{
+  const store=storage();const areaEvidence={journeyId:copy().journey.id,lastAttemptAt:new Date(now).toISOString(),fromSegment:0,error:null,assessment:{assessedAt:new Date(now).toISOString(),overallRisk:'UNKNOWN',coverageStatus:'PARTIAL',items:[{event:{id:'fixture',title:'Fixture warning',source:'NWS',informationType:'OFFICIAL_WARNING',sourceUrl:'https://api.weather.gov/alerts/fixture',issuedAt:new Date(now).toISOString(),retrievedAt:new Date(now).toISOString()},state:'CURRENT',spatial:{segmentIndices:[0],lengthWithinKm:1.5}}]}};
+  saveCopy(store,{...copy(),areaEvidence},now);
+  expect(readCopies(store,now)[0].areaEvidence).toEqual(areaEvidence);
+  expect(()=>saveCopy(storage(),{...copy(),areaEvidence:{...areaEvidence,journeyId:copy(2).journey.id}},now)).toThrow();
+  expect(()=>saveCopy(storage(),{...copy(),areaEvidence:{...areaEvidence,assessment:{...areaEvidence.assessment,items:[{...areaEvidence.assessment.items[0],spatial:{segmentIndices:[-1],lengthWithinKm:-1}}]}}},now)).toThrow();
+});
+
+test('a verified account switch clears previous offline copies and sign-out removes the owner marker', () => {
+  const store = storage();
+  saveCopy(store, copy(), now);
+  bindOfflineAccount(store, 'account-a');
+  expect(readCopies(store, now)).toHaveLength(0);
+  saveCopy(store, copy(), now);
+  bindOfflineAccount(store, 'account-a');
+  expect(readCopies(store, now)).toHaveLength(1);
+  bindOfflineAccount(store, 'account-b');
+  expect(readCopies(store, now)).toHaveLength(0);
+  expect(store.getItem(OFFLINE_ACCOUNT_KEY)).toBe('account-b');
+  clearOfflineAccount(store);
+  expect(store.getItem(OFFLINE_ACCOUNT_KEY)).toBeNull();
 });

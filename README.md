@@ -2,7 +2,7 @@
 
 <p align="center"><img src="docs/assets/custerra-banner.svg" width="100%" alt="Custerra — understand hazards, navigate uncertainty"></p>
 
-<p align="center"><img src="docs/assets/status-candidate.svg" width="180" height="28" alt="V2 release candidate"> <img src="docs/assets/status-evidence.svg" width="180" height="28" alt="Source-linked evidence"> <img src="docs/assets/status-license.svg" width="180" height="28" alt="Apache-2.0 application code"></p>
+<p align="center"><img src="docs/assets/status-evidence.svg" width="180" height="28" alt="Source-linked evidence"> <img src="docs/assets/status-license.svg" width="180" height="28" alt="Apache-2.0 application code"></p>
 
 Custerra is a geospatial natural-hazard intelligence application for **location awareness, route exposure and monitored journeys**. It brings reported observations, their sources and their coverage limits into a coherent map and journey workflow.
 
@@ -14,22 +14,22 @@ Hazard information is spread across catalogs, satellite products, advisory feeds
 
 It helps answer **“What has been reported around this place or route?”** Overall risk stays UNKNOWN; the application does not determine that travel is safe.
 
-## Current capabilities
+## V3 capabilities
 
 | Area | What the application supports |
 | --- | --- |
-| **Natural-hazard intelligence** | Bounded USGS observations, FIRMS thermal detections and GDACS advisories; geographic/time filters; per-source freshness, availability and coverage. FIRMS live acceptance is pending a key. |
-| **Geospatial exploration** | Interactive Leaflet maps, coordinate selection, place-name search, independent hazard layers and source-linked event details. |
-| **Routes & journeys** | Origin/destination driving geometry, earthquake epicenter proximity, full generated-route saving, lifecycle states, optional expiring progress and conservative remaining-route checks. |
-| **Evidence & notices** | Provider-specific baselines, meaningful evidence-change detection, owned in-app notices and notification preferences. Optional Web Push queue/dispatch infrastructure is implemented; native-device acceptance continues. |
-| **Offline support** | Explicit read-only browser copies of a journey and saved evidence, with source timestamps, expiry and sign-out cleanup. No map-tile packs or offline monitoring. |
-| **Developer platform** | A separate scoped B2B API, revocable API credentials, quotas, usage records and an OpenAPI contract for supported USGS-based operations. |
+| **Hazard workspace** | A responsive map and evidence inspector with independent provider states. Available sources include USGS earthquakes, FIRMS thermal detections with configured access, GDACS advisories, a bounded NWS California feed and curated NASA EONET context. |
+| **Historical and geographic context** | Map-linked USGS catalog snapshots and destination comparisons over a shared time window. Modeled elevation, slope and delayed rainfall have separate source and coverage labels. |
+| **Routes and journeys** | Driving-route alternatives, saved route geometry and progress, source-area intersections and on-demand Caltrans District 4 closure reports. Saved places and journeys remain account-scoped. |
+| **Offline support** | An account-aware, read-only journey copy with a route schematic, evidence timestamps and expiry. Sign-out and account switching clear prior copies. No offline tile downloads or monitoring. |
+| **Notices and developer API** | Owned notices and scoped notification preferences, plus revocable B2B API keys, quotas and an OpenAPI contract. Native push delivery remains a separate acceptance check. |
+| **Research** | A fixture-tested postfire debris-flow evaluator in the separate Python research service. Evaluation on the original dataset is pending. |
 
-These capabilities describe the **V2 release candidate**. The application runtime on the default branch remains the earlier release until its separate acceptance and rollout decision. The setup below selects the V2 candidate explicitly. Documentation updates do not deploy either runtime.
+V3 includes additive Flyway migrations through V13. The hosted preview runs V2. Strict container security and hosted acceptance remain release gates. More detail is in the [API reference](docs/api-design.md), [provider coverage](docs/data-sources.md), [offline storage policy](docs/offline.md), and [V3 capture provenance](frontend/public/product/README.md).
 
 ## Product previews
 
-The images below are authentic **staging previews**, using public test locations and a synthetic account. They are not production acceptance evidence.
+The images below show the **V2 staging preview** with public test locations and a synthetic account. The [V3 monitoring](frontend/public/product/v3-monitor.jpg) and [historical catalog](frontend/public/product/v3-history.jpg) captures show the local V3 candidate.
 
 ### Location intelligence
 
@@ -86,8 +86,8 @@ Icons: [Devicon](https://github.com/devicons/devicon), [MIT notice](docs/assets/
 | **NASA FIRMS / LANCE** | Satellite thermal anomalies | Adapter and fixtures implemented; live authentication/nonempty-row acceptance pending an authorized MAP_KEY. Detections are not confirmed wildfires. |
 | **GDACS** | Recent disaster advisories | Bounded live feed parsing verified; feed scope is partial and source availability can vary. Advisory points are not complete impact polygons. |
 | **Open-Meteo / GeoNames** | Place search | Live place lookup verified in staging; attribution and hosted-service limits apply. |
-| **Open-Meteo weather** | Modeled environmental context | Integration implemented; latest actual staging weather check returned 502. It does not alter hazard risk scores. |
-| **OSRM / OpenStreetMap** | Driving route geometry | Real public-city routes verified; no live traffic, road-closure or hazard-aware navigation guarantee. |
+| **Open-Meteo weather** | Modeled environmental context | Integration implemented; a V2 staging check returned 502 and a later bounded retest returned 200. It does not alter hazard risk scores. |
+| **OSRM / OpenStreetMap** | Driving route geometry | Real public-city routes verified; on-demand closure evidence is regional and independent of route geometry. |
 | **OpenStreetMap tiles** | Browser map imagery | Visible attribution and normal caching; no bulk/offline tile prefetch or availability guarantee. |
 
 Hosted service entitlement and data licences are separate. Free Open-Meteo service access is non-commercial; routing, tiles and downstream redistribution have their own conditions. No paid provider subscription is included. [Provider details](docs/data-sources.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
@@ -97,7 +97,7 @@ Hosted service entitlement and data licences are separate. Free Open-Meteo servi
 Requirements: **JDK 21, Maven, Node.js 24/npm and a dedicated PostgreSQL 17 database**. Python 3.14 is optional for the separate research service.
 
 ```sh
-git clone --branch release/v2-candidate https://github.com/Ap-95671/custerra.git
+git clone https://github.com/Ap-95671/custerra.git
 cd custerra
 cp .env.example .env
 ```
@@ -141,9 +141,9 @@ curl 'http://localhost:8080/api/v1/health'
 
 ## Testing & engineering quality
 
-The **November 1, 2026 V2 baseline** passed 205 backend/database tests (three opt-in live skips), frontend lint/build/type checks, 27 frontend unit tests, 26 browser tests, five research tests and 12 script tests. All four container images built; private monitoring-rule fixtures passed.
+The V3 candidate passed 233 backend and PostgreSQL tests, 34 frontend unit tests, 51 Chrome regression tests, 10 research tests and 12 script tests. Frontend lint, production build and type checks passed. Eight backend and two browser opt-in checks were skipped. The source secret scan found no matches.
 
-**The overall security workflow remains failed.** Dependency/container findings, native-device acceptance and operational recovery remain visible release gates. The latest bounded HTTPS staging suite recorded **40 passes and one weather failure**; separate route-progress and browser offline-copy/sign-out checks passed.
+[Container security](https://github.com/Ap-95671/custerra/issues/2), [staging acceptance](https://github.com/Ap-95671/custerra/issues/3), [native push](https://github.com/Ap-95671/custerra/issues/4) and [operational recovery](https://github.com/Ap-95671/custerra/issues/6) remain release gates. The V2 staging suite recorded 40 passes and one weather failure. A later bounded weather retest returned HTTP 200.
 
 ```sh
 mvn -f backend/pom.xml verify
@@ -155,7 +155,7 @@ npm run typecheck
 npm run test:e2e
 ```
 
-[Exact test scope, integration setup and CI evidence](docs/verification.md). Ordinary fixtures do not establish live-provider reliability, native push receipt/display or production safety. Documentation-only updates skip repeated cloud builds; no test total or coverage percentage is invented.
+[V2 verification history and integration setup](docs/verification.md). The V3 local checks used disposable data and provider fixtures.
 
 ## Development progress
 
@@ -163,11 +163,11 @@ npm run test:e2e
 | --- | --- |
 | Interactive hazard exploration | Implemented; bounded live/staging verification |
 | Origin/destination route planning | Implemented; real geometry verified |
-| Generated-route journeys & progress | Implemented on V2 candidate; bounded HTTPS verification |
-| Multi-hazard coverage | Partial provider coverage; live FIRMS acceptance pending |
+| Generated-route journeys & progress | V3 adds source-area assessment and bounded closure reports |
+| Multi-hazard coverage | Partial provider coverage; hosted FIRMS acceptance pending |
 | Journey checks and evidence changes | Implemented; positive-event/continuous-worker acceptance ongoing |
 | Notification infrastructure | Implemented; supported-device receipt/display acceptance ongoing |
-| Offline journey copies | Implemented; save/read/sign-out verified; actual disconnection acceptance pending |
+| Offline journey copies | Local disconnect, reload and account cleanup verified |
 | Scoped B2B API | Implemented; authorization/quota/revocation checks pass |
 | Historical research classifier | Research only; separate from operational decisions |
 | Security and production reliability | Under validation; production rollout not approved |

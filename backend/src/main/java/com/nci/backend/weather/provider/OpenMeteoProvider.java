@@ -2,15 +2,12 @@ package com.nci.backend.weather.provider;
 import com.nci.backend.weather.dto.WeatherResponse;
 import com.nci.backend.weather.model.WeatherQuery;
 import com.nci.backend.provider.ProviderException;
-import java.net.SocketTimeoutException;
 import java.time.Clock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.ObjectMapper;
 @Component
@@ -29,9 +26,7 @@ public class OpenMeteoProvider implements WeatherProvider {
         this.properties = properties; this.mapper = mapper; this.json = json; this.clock = clock; this.client = client;
     }
     private static RestClient client(OpenMeteoProperties properties) {
-        var factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(properties.connectTimeoutMs()); factory.setReadTimeout(properties.readTimeoutMs());
-        return RestClient.builder().requestFactory(factory).build();
+        return com.nci.backend.provider.ProviderHttp.client(properties.connectTimeoutMs(), properties.readTimeoutMs());
     }
     @Override
     public WeatherResponse fetch(WeatherQuery query) {
@@ -42,20 +37,12 @@ public class OpenMeteoProvider implements WeatherProvider {
                 .queryParam("precipitation_unit", "mm").queryParam("timezone", "GMT")
                 .queryParam("timeformat", "unixtime").queryParam("forecast_days", 1).build().encode().toUri();
         try {
-            byte[] bytes = client.get().uri(uri).header("Accept", "application/json").exchange((request, response) -> {
-                if (response.getStatusCode().value() != 200) throw new ProviderException(false);
-                var body = response.getBody().readNBytes(65537);
-                if (body.length > 65536) throw new ProviderException(false);
-                return body;
-            });
+            byte[] bytes = com.nci.backend.provider.ProviderHttp.get(client,uri,"application/json",65536);
             return mapper.map(json.readValue(bytes, OpenMeteoPayload.class), query, clock.instant());
         } catch (ProviderException failure) {
-            log.warn("Weather provider failed: source=OPEN_METEO status={}", failure.getStatusCode().value());
+            log.warn("Weather provider failed: source=OPEN_METEO status={} diagnostic={} upstreamStatus={}",
+                    failure.getStatusCode().value(), failure.diagnostic(), failure.upstreamStatus());
             throw failure;
-        } catch (ResourceAccessException failure) {
-            boolean timeout = failure.getMostSpecificCause() instanceof SocketTimeoutException;
-            log.warn("Weather transport failure: source=OPEN_METEO timeout={}", timeout);
-            throw new ProviderException(timeout);
         } catch (RuntimeException failure) {
             log.warn("Weather payload rejected: source=OPEN_METEO type={}", failure.getClass().getSimpleName());
             throw new ProviderException(false);

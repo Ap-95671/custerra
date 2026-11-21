@@ -43,7 +43,7 @@ class AccountSecurityTests {
         var session=(MockHttpSession)result.getRequest().getSession();
         String oldId=session.getId();
         var token=json.readTree(result.getResponse().getContentAsString()).get("token").asText();
-        mvc.perform(post("/api/v1/auth/login").session(session).header("X-CSRF-TOKEN",token)
+        mvc.perform(post("/api/v1/auth/login").session(session).with(request->{request.setRequestedSessionId(oldId);request.setRequestedSessionIdValid(true);return request;}).header("X-CSRF-TOKEN",token)
                 .param("username",name.toUpperCase(Locale.ROOT)).param("password",PASSWORD))
                 .andExpect(status().isNoContent());
         assertThat(session.getId()).isNotEqualTo(oldId);
@@ -54,6 +54,20 @@ class AccountSecurityTests {
                 {"name":"Private journey","route":{"points":[{"latitude":0,"longitude":0},{"latitude":0,"longitude":1}],"corridorKm":25,"days":7,"minMagnitude":4}}
                 """)).andExpect(status().isCreated()).andReturn();
         return UUID.fromString(json.readTree(result.getResponse().getContentAsString()).get("id").asText());
+    }
+    @Test void generatedJourneysAndProgressEnforceOwnershipCsrfAndCoordinateBounds() throws Exception {
+        var owner=login(username());var other=login(username());
+        String payload="{\"name\":\"Generated\",\"originName\":\"A\",\"destinationName\":\"B\",\"geometry\":\"???_c`|@\",\"corridorKm\":25,\"days\":7,\"minMagnitude\":4}";
+        mvc.perform(post("/api/v1/journeys/generated").session(owner).contentType("application/json").content(payload)).andExpect(status().isForbidden());
+        var response=mvc.perform(post("/api/v1/journeys/generated").session(owner).with(csrf()).contentType("application/json").content(payload)).andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("PLANNED")).andReturn();
+        String id=json.readTree(response.getResponse().getContentAsString()).get("id").asText();
+        mvc.perform(patch("/api/v1/journeys/"+id).session(owner).with(csrf()).contentType("application/json").content("{\"status\":\"ACTIVE\"}")).andExpect(status().isOk());
+        String position=json.writeValueAsString(Map.of("position",Map.of("latitude",0,"longitude",.5),"observedAt",java.time.Instant.now(),"accuracyMeters",10));
+        mvc.perform(put("/api/v1/journeys/"+id+"/progress").session(other).with(csrf()).contentType("application/json").content(position)).andExpect(status().isNotFound());
+        mvc.perform(put("/api/v1/journeys/"+id+"/progress").session(owner).contentType("application/json").content(position)).andExpect(status().isForbidden());
+        mvc.perform(put("/api/v1/journeys/"+id+"/progress").session(owner).with(csrf()).contentType("application/json").content(position)).andExpect(status().isOk()).andExpect(jsonPath("$.progress.state").value("MATCHED"));
+        mvc.perform(delete("/api/v1/journeys/"+id+"/progress").session(other).with(csrf())).andExpect(status().isNotFound());
+        mvc.perform(delete("/api/v1/journeys/"+id+"/progress").session(owner).with(csrf())).andExpect(status().isOk()).andExpect(jsonPath("$.progress").isEmpty());
     }
     @Test void registrationHashesPasswordsAndDoesNotAuthenticateImplicitly() throws Exception {
         String name=username();

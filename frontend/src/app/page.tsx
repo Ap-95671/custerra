@@ -1,2 +1,2 @@
-import LocationDashboard from '../components/LocationDashboard';
-export default function Home() { return <LocationDashboard />; }
+import LandingPage from '../components/landing/LandingPage';
+export default function Home() { return <LandingPage/>; }

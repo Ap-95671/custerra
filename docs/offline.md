@@ -1,3 +1,5 @@
+V2 offline shell v4, compact generated geometry, freshness/storage indicators and privacy verification: [Milestone 25](milestone-25.md).
+
 # Offline journey copies — Milestone 11
 
 On `/routes`, select a saved journey and choose **Save offline copy** while connected. Custerra fetches the saved journey and its latest page of notices, prepares the offline reader, then saves the copy in this browser. The confirmation is shown only after reader assets and data are stored successfully. Open **Offline copies** (`/offline.html`) to check the result before departure.
@@ -38,3 +40,9 @@ Milestone 11 originally left backend contracts unchanged. Subsequent milestones 
 Milestone 15 copies retain source coverage, provider checkpoints, normalized hazard provenance and revision notice types. The viewer displays these as saved evidence and does not refresh them. The shell cache is now version 3 (Milestone 17); existing version 1 data copies remain readable. The event bound is 1,700 across sources, still subject to the existing total 1 MiB storage limit. Oversized copies fail explicitly rather than dropping evidence.
 
 Push identity deduplication uses a separate IndexedDB store containing notification IDs and receipt times, retained for up to seven days with a 1,000-entry bound. It stores no journey/evidence payloads and is not an offline notification inbox.
+
+## November 18 audit update
+
+The offline reader draws a schematic from the full saved geometry, with a coordinate list and an accessible route description. It obtains no tiles, geographic context or live hazard data. The five-asset reader shell is version 7.
+
+A browser-local account marker protects offline copies during account switches. A newly verified different account clears copies associated with the previous account, including from an already-open offline reader. Copies without a known owning account are cleared when a signed-in identity is first established on upgrade. The signed-in owner can save a new copy from the server journey. Idle expiry preserves explicit offline reading. Online sign-out removes both the copies and the marker. Private server records remain owner-scoped.

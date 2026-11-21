@@ -63,28 +63,38 @@ class ApiClientTests {
  }
  @Test void rotationRevocationExpiryAndClientLimitAreEnforced(){
   var rotated=clients.rotate(owner,issued.id());assertThat(rotated.apiKey()).isNotEqualTo(issued.apiKey());
-  assertThatThrownBy(()->clients.admit(issued.apiKey(),"fixture")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
-  clients.revoke(owner,rotated.id());assertThatThrownBy(()->clients.admit(rotated.apiKey(),"fixture")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+  assertThatThrownBy(()->clients.admit(issued.apiKey(),"nearby")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+  clients.revoke(owner,rotated.id());assertThatThrownBy(()->clients.admit(rotated.apiKey(),"nearby")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
   var expired=clients.create(owner,"Expired");jdbc.update("update api_client set expires_at=now()-interval '1 second' where id=?",expired.id());
-  assertThatThrownBy(()->clients.admit(expired.apiKey(),"fixture")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+  assertThatThrownBy(()->clients.admit(expired.apiKey(),"nearby")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
   for(int i=0;i<5;i++)clients.create(owner,"Active");assertThatThrownBy(()->clients.create(owner,"Too many")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
  }
  @Test void minuteLimitDoesNotConsumeDailyQuotaAndOldWindowsDoNotBlock() throws Exception {
   UUID org=jdbc.queryForObject("select id from api_organization where owner_id=?",UUID.class,owner);
   var minute=Instant.now().truncatedTo(ChronoUnit.MINUTES);
   jdbc.update("insert into api_usage_bucket values (?,?,'MINUTE',20)",org,java.sql.Timestamp.from(minute));
-  assertThatThrownBy(()->clients.admit(issued.apiKey(),"fixture")).isInstanceOf(ApiClientService.QuotaExceeded.class);
+  assertThatThrownBy(()->clients.admit(issued.apiKey(),"nearby")).isInstanceOf(ApiClientService.QuotaExceeded.class);
   assertThat(clients.usage(owner).requestsToday()).isZero();
   jdbc.update("update api_usage_bucket set window_start=? where organization_id=?",java.sql.Timestamp.from(minute.minusSeconds(60)),org);
-  clients.admit(issued.apiKey(),"fixture");assertThat(clients.usage(owner).requestsToday()).isEqualTo(1);
+  clients.admit(issued.apiKey(),"nearby");assertThat(clients.usage(owner).requestsToday()).isEqualTo(1);
   mvc.perform(put("/api/internal/organizations/"+org+"/plan").with(user(name)).with(csrf()).contentType("application/json").content("{\"plan\":\"STANDARD\"}")).andExpect(status().isForbidden());
   assertThat(clients.usage(owner).plan()).isEqualTo("DEVELOPMENT");
+ }
+ @Test void operationScopesAreCheckedBeforeQuotaAndSurviveRotation() throws Exception {
+  var restricted=clients.create(owner,"Nearby only",Set.of("nearby"));
+  assertThatThrownBy(()->clients.create(owner,"Invalid",Set.of("admin"))).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+  mvc.perform(get("/api/v1/b2b/risk/location?latitude=0&longitude=0").header("Authorization","Bearer "+restricted.apiKey())).andExpect(status().isForbidden());
+  assertThat(clients.usage(owner).requestsToday()).isZero();
+  var rotated=clients.rotate(owner,restricted.id());
+  assertThat(clients.list(owner)).filteredOn(c->c.id().equals(rotated.id())).singleElement().satisfies(c->assertThat(c.scopes()).containsExactly("nearby"));
+  assertThatThrownBy(()->clients.admit(rotated.apiKey(),"route")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+  clients.admit(rotated.apiKey(),"nearby");assertThat(clients.usage(owner).requestsToday()).isEqualTo(1);
  }
  @Test void concurrentKeysShareAtomicOrganizationQuota() throws Exception {
   var second=clients.create(owner,"Second key");UUID org=jdbc.queryForObject("select id from api_organization where owner_id=?",UUID.class,owner);
   jdbc.update("insert into api_usage_bucket values (?,?,'DAY',99)",org,java.sql.Timestamp.from(Instant.now().truncatedTo(ChronoUnit.DAYS)));
   try(var pool=Executors.newFixedThreadPool(2)){
-   var tasks=List.of(issued.apiKey(),second.apiKey()).stream().map(key->pool.submit(()->{try{clients.admit(key,"fixture");return true;}catch(ApiClientService.QuotaExceeded exhausted){return false;}})).toList();
+   var tasks=List.of(issued.apiKey(),second.apiKey()).stream().map(key->pool.submit(()->{try{clients.admit(key,"nearby");return true;}catch(ApiClientService.QuotaExceeded exhausted){return false;}})).toList();
    int successes=0;for(var task:tasks)if(task.get(5,TimeUnit.SECONDS))successes++;assertThat(successes).isEqualTo(1);
   }
   assertThat(clients.usage(owner).requestsToday()).isEqualTo(100);

@@ -6,6 +6,8 @@ Owner-controlled application code is licensed under [Apache-2.0](LICENSE); see [
 
 The project uses Java/Spring, PostgreSQL, React/Next.js, Leaflet, Python/FastAPI and scientific Python packages. Dependency manifests identify versions; their licences remain separate from the application code licence.
 
+JTS Topology Suite is used for source-area geometry. See the [Eclipse Distribution License notice](docs/assets/licenses/JTS-EDL-1.0.txt).
+
 The npm lock inventory includes MIT, Apache-2.0, ISC, BSD, MPL-2.0, LGPL-3.0-or-later and compound declarations. Native image-processing distributions include LGPL-related terms. Review required notices, corresponding source/relinking obligations where applicable and artifact-specific distribution before publishing binaries or containers. Maven inherited licences, Python transitives and container OS components require additional review.
 
 ## Data and hosted services

@@ -2,10 +2,12 @@ import { safeSourceUrl, type Nearby } from '../../types/hazard';
 import type { Result } from '../../hooks/useLocationAssessment';
 import { formatTimestamp as time } from '../../lib/utils/dateUtils';
 import { hazardLayers, eventLayer, hazardLabel, informationLabel } from '../../lib/maps/hazardLayers';
+import { useState } from 'react';
 export default function DisasterList({ hazards, hasQuery, selected, onSelect, onRetry }: {
   hazards: Result<Nearby>; hasQuery: boolean; selected: string | null; onSelect: (id: string) => void; onRetry: () => void;
 }) {
   const items = hazards.data?.items ?? [];
+  const [limit,setLimit]=useState(50);
   const unavailable = hazards.data?.coverageStatus === 'UNAVAILABLE';
   return <section className="events-section"><div className="section-heading"><div><p className="eyebrow">03 — SOURCE EVIDENCE</p><h2>Nearby hazards {hazards.data && <span className="count">{items.length}</span>}</h2></div>{hazards.data && <span className="timestamp">Retrieved {time(hazards.data.fetchedAt)}</span>}</div>
     {hazards.loading && <p className="loading" role="status">Retrieving hazard evidence…</p>}
@@ -16,6 +18,7 @@ export default function DisasterList({ hazards, hasQuery, selected, onSelect, on
       <p>{hazards.data.coverage}</p>
       {hazards.data.providerStatuses?.map(status => <details key={status.provider} open={status.coverageStatus !== 'COMPLETE'}>
         <summary>{status.provider}: {status.coverageStatus}</summary>
+        <p>{status.availability ?? 'Availability unspecified'} · {status.freshness ?? 'Freshness unspecified'}</p>
         <p>{status.retrievedAt ? `Retrieved ${time(status.retrievedAt)}` : 'No successful retrieval for this query.'}</p>
         <ul>{status.limitations.map(note => <li key={note}>{note}</li>)}</ul>
       </details>)}
@@ -24,7 +27,7 @@ export default function DisasterList({ hazards, hasQuery, selected, onSelect, on
     </div>}
     {hazards.data && !unavailable && items.length === 0 && <div className="empty">No matching hazards in the retrieved evidence.<span>This does not establish safety or rule out other hazards.</span></div>}
     {hazards.data?.truncated && <p className="notice">Source results were truncated. More events may exist; the retrieved events are not necessarily the nearest. Check provider coverage details.</p>}
-    <div className="event-grid">{items.map(item => {
+    <div className="event-grid">{items.slice(0,limit).map(item => {
       const e = item.event; const id = `${e.source}:${e.externalId}`; const layer = hazardLayers[eventLayer(e)];
       return <article className={`event-card ${selected === id ? 'selected' : ''}`} key={id}>
         <div className="section-heading"><span className="magnitude" style={{ color: layer.color }}>{layer.symbol} {e.hazardType === 'EARTHQUAKE' ? `M ${e.measurements.magnitude?.toFixed(1) ?? '—'}` : e.source === 'FIRMS' ? 'Thermal anomaly' : e.hazardType.replaceAll('_', ' ')}</span><span className="tag">{informationLabel(e.informationType)}</span></div>
@@ -41,6 +44,7 @@ export default function DisasterList({ hazards, hasQuery, selected, onSelect, on
         </dl></details>
       </article>;
     })}</div>
+    {items.length>limit && <div className="feature-actions"><button onClick={()=>setLimit(limit+50)}>Show more evidence</button><span className="timestamp">Showing {limit} of {items.length} retrieved records. No additional provider request.</span></div>}
     {hazards.data && <div className="source-attribution">{hazards.data.sources.map(source => <p key={source.id}><a href={safeSourceUrl(source.documentationUrl)} target="_blank" rel="noreferrer">{source.attribution}</a> · <a href={safeSourceUrl(source.licensingUrl)} target="_blank" rel="noreferrer">Terms and attribution</a><br/>{source.refreshPolicy}</p>)}</div>}
   </section>;
 }

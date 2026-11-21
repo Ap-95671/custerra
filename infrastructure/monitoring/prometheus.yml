@@ -1,0 +1,18 @@
+# Preparation only: deploy on an authorized private collector, never a public web port.
+# backend:8080 is the internal Docker Compose service; combined Render demo does
+# not expose this path through Next. Mount a separately provisioned OPS_TOKEN file.
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+rule_files:
+  - /etc/prometheus/alerts.yml
+scrape_configs:
+  - job_name: custerra-backend
+    metrics_path: /actuator/prometheus
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/custerra_ops_token
+    static_configs:
+      - targets: ['backend:8080']
+# No receiver configured: owner must approve private Alertmanager and recipients.
+# Start Prometheus with --web.listen-address=127.0.0.1:9090 on a trusted collector.

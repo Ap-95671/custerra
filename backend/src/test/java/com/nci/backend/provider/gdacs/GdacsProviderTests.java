@@ -59,6 +59,19 @@ class GdacsProviderTests {
         var result = provider.fetch(query); assertThat(result.events()).hasSize(1);
         assertThat(result.limitations()).contains("REJECTED_OR_UNSUPPORTED_ITEMS: 2");
     }
+    @Test void legacyReportCitationIsCanonicalizedToHttpsWithoutAcceptingOtherHttpTargets() {
+        var legacy=ITEM.replace("https://www.gdacs.org/report.aspx", "http://www.gdacs.org/report.aspx");
+        var result=provider.parse(feed(legacy).getBytes(StandardCharsets.UTF_8),NOW);
+        assertThat(result.events()).hasSize(1);
+        var event=result.events().getFirst();
+        assertThat(event.sourceUrl()).isEqualTo("https://www.gdacs.org/report.aspx?eventtype=FL&eventid=123");
+        assertThat(event.attributes()).containsEntry("sourceUrlNormalization","GDACS_REPORT_HTTP_TO_HTTPS")
+                .containsEntry("originalSourceUrl","http://www.gdacs.org/report.aspx?eventtype=FL&eventid=123");
+        for(String unsafe:List.of("http://evil.test/report.aspx","http://user@www.gdacs.org/report.aspx",
+                "http://www.gdacs.org:80/report.aspx","http://www.gdacs.org/other.aspx")) {
+            assertThat(provider.parse(feed(ITEM.replace("https://www.gdacs.org/report.aspx",unsafe)).getBytes(StandardCharsets.UTF_8),NOW).events()).isEmpty();
+        }
+    }
     @Test void emptyFeedIsPartialAndDisabledSourceIsUnavailable() {
         server.expect(anything()).andRespond(withSuccess(feed(""),MediaType.APPLICATION_XML));
         var empty = provider.fetch(query); assertThat(empty.events()).isEmpty(); assertThat(empty.coverageStatus()).isEqualTo(CoverageStatus.PARTIAL);
